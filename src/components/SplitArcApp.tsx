@@ -49,16 +49,26 @@ function truncate(addr?: string) {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
+function Logo() {
+  return (
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="36" height="36" rx="10" fill="#1D9E75" />
+      <path
+        d="M18 26V16M18 16L12 10M18 16L24 10"
+        stroke="white"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function Header() {
   return (
     <div className="flex items-center justify-between mb-6">
       <div className="flex items-center gap-2">
-        <div
-          className="h-9 w-9 rounded-xl flex items-center justify-center text-white font-bold"
-          style={{ backgroundColor: ACCENT }}
-        >
-          S
-        </div>
+        <Logo />
         <div className="leading-tight">
           <div className="font-bold text-lg text-neutral-900">SplitArc</div>
           <div className="text-xs text-neutral-500">USDC split payments</div>
