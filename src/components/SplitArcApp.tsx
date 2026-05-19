@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import {
   WagmiProvider,
   useAccount,
-  useBalance,
+  useReadContract,
   useConnect,
   useDisconnect,
   useConnectorClient,
   useSwitchChain,
   useChainId,
 } from "wagmi";
+import { erc20Abi, formatUnits } from "viem";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { isAddress, type EIP1193Provider } from "viem";
 import { AppKit } from "@circle-fin/app-kit";
