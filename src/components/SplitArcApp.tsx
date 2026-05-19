@@ -82,12 +82,16 @@ function WalletBar() {
   const { switchChain } = useSwitchChain();
   const onWrongChain = isConnected && chainId !== ARC_TESTNET_ID;
 
-  const { data: balance } = useBalance({
-    address,
-    token: USDC_ADDRESS,
+  const { data: balanceRaw } = useReadContract({
+    address: USDC_ADDRESS,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
     chainId: ARC_TESTNET_ID,
     query: { enabled: !!address && !onWrongChain, refetchInterval: 10_000 },
   });
+  const balance =
+    typeof balanceRaw === "bigint" ? formatUnits(balanceRaw, USDC_DECIMALS) : undefined;
 
   const injectedConnector = connectors.find((c) => c.type === "injected") ?? connectors[0];
 
@@ -124,7 +128,7 @@ function WalletBar() {
           <div className="text-right">
             <div className="text-xs text-neutral-500">Balance</div>
             <div className="text-sm font-semibold" style={{ color: ACCENT }}>
-              {balance ? Number(balance.formatted).toFixed(2) : "0.00"} USDC
+              {balance ? Number(balance).toFixed(2) : "0.00"} USDC
             </div>
           </div>
         )}
