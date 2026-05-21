@@ -5,7 +5,6 @@ import {
   useReadContract,
   useConnect,
   useDisconnect,
-  useConnectorClient,
   useSwitchChain,
   useChainId,
 } from "wagmi";
@@ -235,9 +234,8 @@ function WalletBar() {
 }
 
 function App() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, connector } = useAccount();
   const chainId = useChainId();
-  const { data: walletClient } = useConnectorClient({ chainId: ARC_TESTNET_ID });
 
   const { data: balanceRaw } = useReadContract({
     address: USDC_ADDRESS,
@@ -298,7 +296,7 @@ function App() {
       setError("Switch your wallet to Arc Testnet to continue.");
       return;
     }
-    if (!walletClient) {
+    if (!connector) {
       setError("Wallet not ready yet — try again in a second.");
       return;
     }
@@ -323,7 +321,7 @@ function App() {
 
     setSending(true);
     try {
-      const provider = walletClient.transport as unknown as EIP1193Provider;
+      const provider = (await connector.getProvider()) as EIP1193Provider;
       const adapter = await createViemAdapterFromProvider({ provider });
       const kit = new AppKit();
 
