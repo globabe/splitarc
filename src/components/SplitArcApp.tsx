@@ -235,9 +235,8 @@ function WalletBar() {
 }
 
 function App() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, connector } = useAccount();
   const chainId = useChainId();
-  const { data: walletClient } = useConnectorClient({ chainId: ARC_TESTNET_ID });
 
   const { data: balanceRaw } = useReadContract({
     address: USDC_ADDRESS,
