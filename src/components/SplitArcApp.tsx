@@ -322,7 +322,7 @@ function App() {
 
     setSending(true);
     try {
-      const provider = walletClient.transport as unknown as EIP1193Provider;
+      const provider = (await connector.getProvider()) as EIP1193Provider;
       const adapter = await createViemAdapterFromProvider({ provider });
       const kit = new AppKit();
 
