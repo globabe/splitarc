@@ -28,7 +28,7 @@ type Mode = "equal" | "custom";
 type Recipient = {
   id: string;
   address: string;
-  percent: string; // only used in custom mode
+  percent: string;
 };
 
 type SendResult = {
@@ -39,6 +39,8 @@ type SendResult = {
 };
 
 const ACCENT = "#1D9E75";
+const ACCENT_TINT = "#E1F5EE";
+const BG = "#F5F5F5";
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -51,12 +53,59 @@ function truncate(addr?: string) {
 
 function Logo() {
   return (
-    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="36" height="36" rx="10" fill="#1D9E75" />
+    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="40" height="40" rx="11" fill={ACCENT} />
+      {/* Split / fork arrow: single stem branching into two outward arrows */}
       <path
-        d="M18 26V16M18 16L12 10M18 16L24 10"
+        d="M20 30 V22"
         stroke="white"
         strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M20 22 L13 15 M20 22 L27 15"
+        stroke="white"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      {/* Arrowheads */}
+      <path
+        d="M13 15 L13 11 M13 15 L17 15"
+        stroke="white"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M27 15 L27 11 M27 15 L23 15"
+        stroke="white"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function SendIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M22 2L11 13"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M22 2L15 22L11 13L2 9L22 2Z"
+        stroke="currentColor"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -64,22 +113,39 @@ function Logo() {
   );
 }
 
-function Header() {
+function CheckIcon() {
   return (
-    <div className="flex items-center justify-between mb-6">
-      <div className="flex items-center gap-2">
-        <Logo />
-        <div className="leading-tight">
-          <div className="font-bold text-lg text-neutral-900">SplitArc</div>
-          <div className="text-xs text-neutral-500">USDC split payments</div>
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M5 12.5L10 17.5L19 7.5"
+        stroke="white"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function Header({ children }: { children?: React.ReactNode }) {
+  return (
+    <div className="mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <Logo />
+          <div className="leading-tight">
+            <div className="font-bold text-xl text-neutral-900">SplitArc</div>
+            <div className="text-xs text-neutral-500">USDC split payments</div>
+          </div>
         </div>
+        <span
+          className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
+          style={{ backgroundColor: ACCENT_TINT, color: ACCENT }}
+        >
+          Arc Testnet
+        </span>
       </div>
-      <span
-        className="text-xs font-semibold px-2.5 py-1 rounded-full"
-        style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
-      >
-        Arc Testnet
-      </span>
+      {children}
     </div>
   );
 }
@@ -111,7 +177,7 @@ function WalletBar() {
         type="button"
         onClick={() => injectedConnector && connect({ connector: injectedConnector })}
         disabled={isPending || !injectedConnector}
-        className="w-full rounded-xl px-4 py-3 font-semibold text-white transition active:scale-[.98] disabled:opacity-60"
+        className="w-full rounded-2xl px-5 py-3.5 font-semibold text-white transition active:scale-[.98] disabled:opacity-60 shadow-sm"
         style={{ backgroundColor: ACCENT }}
       >
         {isPending ? "Connecting…" : "Connect Wallet"}
@@ -120,12 +186,22 @@ function WalletBar() {
   }
 
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-3 flex items-center justify-between">
-      <div className="flex flex-col">
-        <span className="text-xs text-neutral-500">Connected</span>
-        <span className="font-mono text-sm text-neutral-900">{truncate(address)}</span>
+    <div className="rounded-2xl border border-neutral-200 bg-white p-3.5 flex items-center justify-between shadow-sm">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div
+          className="h-9 w-9 rounded-full flex items-center justify-center shrink-0"
+          style={{ backgroundColor: ACCENT_TINT }}
+        >
+          <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: ACCENT }} />
+        </div>
+        <div className="flex flex-col min-w-0">
+          <span className="text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">
+            Wallet
+          </span>
+          <span className="font-mono text-sm text-neutral-900 truncate">{truncate(address)}</span>
+        </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         {onWrongChain ? (
           <button
             type="button"
@@ -136,8 +212,10 @@ function WalletBar() {
           </button>
         ) : (
           <div className="text-right">
-            <div className="text-xs text-neutral-500">Balance</div>
-            <div className="text-sm font-semibold" style={{ color: ACCENT }}>
+            <div className="text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">
+              Balance
+            </div>
+            <div className="text-sm font-bold" style={{ color: ACCENT }}>
               {balance ? Number(balance).toFixed(2) : "0.00"} USDC
             </div>
           </div>
@@ -145,8 +223,9 @@ function WalletBar() {
         <button
           type="button"
           onClick={() => disconnect()}
-          className="text-xs text-neutral-500 hover:text-neutral-800 px-2 py-1"
+          className="text-neutral-300 hover:text-neutral-600 text-base leading-none px-1"
           title="Disconnect"
+          aria-label="Disconnect wallet"
         >
           ✕
         </button>
@@ -159,6 +238,17 @@ function App() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { data: walletClient } = useConnectorClient({ chainId: ARC_TESTNET_ID });
+
+  const { data: balanceRaw } = useReadContract({
+    address: USDC_ADDRESS,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    chainId: ARC_TESTNET_ID,
+    query: { enabled: !!address && chainId === ARC_TESTNET_ID, refetchInterval: 10_000 },
+  });
+  const balanceStr =
+    typeof balanceRaw === "bigint" ? formatUnits(balanceRaw, USDC_DECIMALS) : undefined;
 
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState<Mode>("equal");
@@ -271,40 +361,56 @@ function App() {
 
   if (results) {
     return (
-      <div className="space-y-4">
-        <div className="text-center py-4">
+      <div className="space-y-5">
+        <div className="text-center py-6">
           <div
-            className="mx-auto h-12 w-12 rounded-full flex items-center justify-center text-white text-2xl"
-            style={{ backgroundColor: ACCENT }}
+            className="mx-auto h-20 w-20 rounded-full flex items-center justify-center shadow-lg"
+            style={{ backgroundColor: ACCENT, boxShadow: `0 10px 30px -10px ${ACCENT}80` }}
           >
-            ✓
+            <CheckIcon />
           </div>
-          <h2 className="mt-3 text-lg font-bold text-neutral-900">Split complete</h2>
-          <p className="text-sm text-neutral-500">
-            Sent to {results.length} recipient{results.length === 1 ? "" : "s"}
+          <h2 className="mt-5 text-2xl font-bold text-neutral-900">Split complete!</h2>
+          <p className="text-sm text-neutral-500 mt-1">
+            Sent USDC to {results.length} recipient{results.length === 1 ? "" : "s"}
           </p>
         </div>
-        <div className="space-y-2">
-          {results.map((r) => (
-            <div key={r.address} className="rounded-xl border border-neutral-200 bg-white p-3">
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-sm text-neutral-900">{truncate(r.address)}</span>
-                <span className="font-semibold text-sm" style={{ color: ACCENT }}>
-                  {r.amount} USDC
+        <div className="space-y-2.5">
+          {results.map((r, i) => (
+            <div
+              key={r.address}
+              className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                    style={{ backgroundColor: ACCENT_TINT, color: ACCENT }}
+                  >
+                    {i + 1}
+                  </div>
+                  <span className="font-mono text-sm text-neutral-900 truncate">
+                    {truncate(r.address)}
+                  </span>
+                </div>
+                <span className="font-bold text-base shrink-0" style={{ color: ACCENT }}>
+                  {Number(r.amount).toFixed(2)} USDC
                 </span>
               </div>
-              {r.txHash ? (
-                <a
-                  href={`${EXPLORER_URL}/tx/${r.txHash}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs underline text-neutral-500 break-all"
-                >
-                  View on Arcscan →
-                </a>
-              ) : (
-                <div className="text-xs text-red-600 break-words">{r.error}</div>
-              )}
+              <div className="mt-2.5 pt-2.5 border-t border-neutral-100">
+                {r.txHash ? (
+                  <a
+                    href={`${EXPLORER_URL}/tx/${r.txHash}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-semibold"
+                    style={{ color: ACCENT }}
+                  >
+                    View on ArcScan →
+                  </a>
+                ) : (
+                  <div className="text-xs text-red-600 break-words">{r.error}</div>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -314,49 +420,55 @@ function App() {
             setResults(null);
             setAmount("");
           }}
-          className="w-full rounded-xl px-4 py-3 font-semibold text-white"
+          className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98] shadow-sm"
           style={{ backgroundColor: ACCENT }}
         >
-          New split
+          Start new split
         </button>
       </div>
     );
   }
 
+  const canSend = isConnected && totalAmount > 0 && !sending;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <WalletBar />
 
-      {/* Amount */}
-      <div className="rounded-xl border border-neutral-200 bg-white p-3">
-        <label className="text-xs text-neutral-500">Total amount</label>
-        <div className="flex items-center gap-2 mt-1">
-          <input
-            inputMode="decimal"
-            placeholder="0.00"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))}
-            className="flex-1 text-2xl font-bold text-neutral-900 outline-none bg-transparent"
-            style={{ color: amount ? ACCENT : undefined }}
-          />
-          <span
-            className="text-xs font-bold px-2 py-1 rounded-md"
-            style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
-          >
-            USDC
-          </span>
+      {/* Hero amount */}
+      <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-7 shadow-sm">
+        <div className="text-center">
+          <div className="text-[11px] uppercase tracking-wider text-neutral-400 font-semibold mb-2">
+            Total to split
+          </div>
+          <div className="flex items-baseline justify-center gap-2">
+            <input
+              inputMode="decimal"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))}
+              className="w-[60%] text-5xl font-bold text-center outline-none bg-transparent placeholder:text-neutral-300 tabular-nums"
+              style={{ color: amount ? "#0a0a0a" : undefined }}
+            />
+            <span className="text-lg font-bold text-neutral-400">USDC</span>
+          </div>
+          <div className="mt-2 text-xs text-neutral-500">
+            {isConnected
+              ? `Available: ${balanceStr ? Number(balanceStr).toFixed(2) : "0.00"} USDC`
+              : "Connect wallet to see balance"}
+          </div>
         </div>
       </div>
 
       {/* Mode toggle */}
-      <div className="grid grid-cols-2 gap-2 bg-neutral-100 p-1 rounded-xl">
+      <div className="grid grid-cols-2 gap-1.5 bg-neutral-100 p-1 rounded-2xl">
         {(["equal", "custom"] as Mode[]).map((m) => (
           <button
             key={m}
             type="button"
             onClick={() => setMode(m)}
-            className={`py-2 rounded-lg text-sm font-semibold transition ${
-              mode === m ? "bg-white shadow text-neutral-900" : "text-neutral-500"
+            className={`py-2.5 rounded-xl text-sm font-semibold transition ${
+              mode === m ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"
             }`}
           >
             {m === "equal" ? "Equal split" : "Custom %"}
@@ -365,10 +477,11 @@ function App() {
       </div>
 
       {/* Recipients */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-neutral-900">
-            Recipients ({recipients.length}/10)
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-sm font-bold text-neutral-900">
+            Recipients{" "}
+            <span className="text-neutral-400 font-normal">({recipients.length}/10)</span>
           </h3>
           <button
             type="button"
@@ -384,40 +497,52 @@ function App() {
         {recipients.map((r, i) => {
           const calc = amountFor(r);
           return (
-            <div key={r.id} className="rounded-xl border border-neutral-200 bg-white p-3">
-              <div className="flex items-center gap-2">
-                <input
-                  placeholder={`Wallet address #${i + 1}`}
-                  value={r.address}
-                  onChange={(e) => updateRecipient(r.id, { address: e.target.value })}
-                  className="flex-1 font-mono text-xs outline-none bg-transparent text-neutral-900 placeholder:text-neutral-400"
-                />
+            <div
+              key={r.id}
+              className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 mt-0.5"
+                  style={{ backgroundColor: ACCENT_TINT, color: ACCENT }}
+                >
+                  {i + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <input
+                    placeholder="0x… wallet address"
+                    value={r.address}
+                    onChange={(e) => updateRecipient(r.id, { address: e.target.value })}
+                    className="w-full font-mono text-xs outline-none bg-transparent text-neutral-900 placeholder:text-neutral-400"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => removeRecipient(r.id)}
-                  className="text-neutral-400 hover:text-red-500 text-sm"
+                  className="text-neutral-300 hover:text-red-500 text-sm shrink-0"
                   title="Remove"
+                  aria-label="Remove recipient"
                 >
                   ✕
                 </button>
               </div>
-              <div className="flex items-center justify-between mt-2 pt-2 border-t border-neutral-100">
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-neutral-100">
                 {mode === "custom" ? (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <input
                       inputMode="decimal"
                       value={r.percent}
                       onChange={(e) =>
                         updateRecipient(r.id, { percent: e.target.value.replace(/[^\d.]/g, "") })
                       }
-                      className="w-14 text-sm font-semibold outline-none bg-neutral-50 rounded px-2 py-0.5 text-neutral-900"
+                      className="w-16 text-sm font-semibold outline-none bg-neutral-50 rounded-lg px-2.5 py-1 text-neutral-900"
                     />
                     <span className="text-xs text-neutral-500">%</span>
                   </div>
                 ) : (
                   <span className="text-xs text-neutral-500">Equal share</span>
                 )}
-                <span className="text-sm font-semibold" style={{ color: ACCENT }}>
+                <span className="text-base font-bold tabular-nums" style={{ color: ACCENT }}>
                   {calc.toFixed(2)} USDC
                 </span>
               </div>
@@ -425,7 +550,7 @@ function App() {
           );
         })}
         {mode === "custom" && (
-          <div className="text-xs text-right text-neutral-500">
+          <div className="text-xs text-right px-1 text-neutral-500">
             Total:{" "}
             <span
               className={
@@ -441,18 +566,22 @@ function App() {
       </div>
 
       {/* Summary */}
-      <div className="rounded-xl bg-neutral-50 border border-neutral-200 p-3 text-sm space-y-1.5">
+      <div
+        className="rounded-2xl border p-4 text-sm space-y-2"
+        style={{ backgroundColor: ACCENT_TINT, borderColor: "#C7E9DC" }}
+      >
         <Row label="Total" value={`${totalAmount.toFixed(2)} USDC`} accent />
         <Row label="Recipients" value={String(validRecipients.length)} />
         {mode === "equal" && validRecipients.length > 0 && (
           <Row label="Per wallet" value={`${equalShare.toFixed(2)} USDC`} />
         )}
+        <div className="border-t my-1" style={{ borderColor: "#C7E9DC" }} />
         <Row label="Est. gas" value="~0.01 USDC" />
         <Row label="Network" value="Arc Testnet" />
       </div>
 
       {error && (
-        <div className="rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm p-3">
+        <div className="rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm p-4">
           {error}
         </div>
       )}
@@ -460,11 +589,22 @@ function App() {
       <button
         type="button"
         onClick={handleSend}
-        disabled={sending || !isConnected}
-        className="w-full rounded-xl px-4 py-3.5 font-semibold text-white transition active:scale-[.98] disabled:opacity-50"
-        style={{ backgroundColor: ACCENT }}
+        disabled={!canSend}
+        className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98] flex items-center justify-center gap-2 shadow-sm disabled:shadow-none"
+        style={{
+          backgroundColor: canSend ? ACCENT : "#D4D4D4",
+          color: canSend ? "white" : "#737373",
+          cursor: canSend ? "pointer" : "not-allowed",
+        }}
       >
-        {sending ? "Sending…" : `Split & Send`}
+        <SendIcon />
+        {sending
+          ? "Sending…"
+          : !isConnected
+            ? "Connect wallet to send"
+            : totalAmount <= 0
+              ? "Enter an amount"
+              : "Split & Send"}
       </button>
     </div>
   );
@@ -472,10 +612,10 @@ function App() {
 
 function Row({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="flex justify-between">
-      <span className="text-neutral-500">{label}</span>
+    <div className="flex justify-between items-center">
+      <span className="text-neutral-600">{label}</span>
       <span
-        className={accent ? "font-bold" : "text-neutral-900 font-medium"}
+        className={accent ? "font-bold text-base tabular-nums" : "text-neutral-900 font-semibold tabular-nums"}
         style={accent ? { color: ACCENT } : undefined}
       >
         {value}
@@ -495,7 +635,7 @@ export default function SplitArcApp() {
 
   if (!mounted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: BG }}>
         <div className="text-neutral-400 text-sm">Loading…</div>
       </div>
     );
@@ -504,11 +644,11 @@ export default function SplitArcApp() {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <div className="min-h-screen bg-neutral-50 px-4 py-6 flex justify-center">
+        <div className="min-h-screen px-5 py-8 flex justify-center" style={{ backgroundColor: BG }}>
           <div className="w-full max-w-[480px]">
             <Header />
             <App />
-            <p className="mt-6 text-center text-xs text-neutral-400">
+            <p className="mt-8 text-center text-xs text-neutral-400">
               Arc Testnet · Chain ID {arcTestnet.id}
             </p>
           </div>
