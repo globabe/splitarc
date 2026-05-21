@@ -297,7 +297,7 @@ function App() {
       setError("Switch your wallet to Arc Testnet to continue.");
       return;
     }
-    if (!walletClient) {
+    if (!connector) {
       setError("Wallet not ready yet — try again in a second.");
       return;
     }
