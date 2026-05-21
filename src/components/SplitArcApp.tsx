@@ -5,7 +5,6 @@ import {
   useReadContract,
   useConnect,
   useDisconnect,
-  useConnectorClient,
   useSwitchChain,
   useChainId,
 } from "wagmi";
