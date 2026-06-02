@@ -312,8 +312,10 @@ function App() {
       return;
     }
     for (const r of validRecipients) {
-      if (!isAddress(r.address.trim())) {
-        setError(`Invalid wallet address: ${r.address}`);
+      // Solana uses base58 addresses; only validate EVM addresses here.
+      const chainInfo = CHAINS[r.chain];
+      if (chainInfo.key !== "solana" && !isAddress(r.address.trim())) {
+        setError(`Invalid wallet address for ${chainInfo.name}: ${r.address}`);
         return;
       }
     }
