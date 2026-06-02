@@ -257,6 +257,7 @@ function App() {
   const [sending, setSending] = useState(false);
   const [results, setResults] = useState<SendResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copiedTx, setCopiedTx] = useState<string | null>(null);
 
   const totalAmount = parseFloat(amount || "0") || 0;
   const validRecipients = recipients.filter((r) => r.address.trim().length > 0);
@@ -359,52 +360,98 @@ function App() {
 
   if (results) {
     return (
-      <div className="space-y-5">
-        <div className="text-center py-6">
+      <div className="rounded-3xl p-6 space-y-6" style={{ backgroundColor: ACCENT_TINT }}>
+        <style>{`
+          @keyframes check-draw {
+            0% { stroke-dashoffset: 60; }
+            100% { stroke-dashoffset: 0; }
+          }
+          @keyframes check-pop {
+            0% { transform: scale(0); opacity: 0; }
+            60% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+          }
+          .check-path {
+            stroke-dasharray: 60;
+            stroke-dashoffset: 60;
+            animation: check-draw 0.6s ease-out 0.2s forwards;
+          }
+          .check-circle {
+            animation: check-pop 0.5s ease-out forwards;
+          }
+        `}</style>
+        <div className="text-center pt-4">
           <div
-            className="mx-auto h-20 w-20 rounded-full flex items-center justify-center shadow-lg"
+            className="check-circle mx-auto h-24 w-24 rounded-full flex items-center justify-center shadow-lg"
             style={{ backgroundColor: ACCENT, boxShadow: `0 10px 30px -10px ${ACCENT}80` }}
           >
-            <CheckIcon />
+            <svg width="52" height="52" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                className="check-path"
+                d="M5 12.5L10 17.5L19 7.5"
+                stroke="white"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </div>
-          <h2 className="mt-5 text-2xl font-bold text-neutral-900">Split complete!</h2>
-          <p className="text-sm text-neutral-500 mt-1">
+          <h2 className="mt-6 text-3xl font-bold text-neutral-900">Split Complete!</h2>
+          <p className="text-sm text-neutral-500 mt-2">
             Sent USDC to {results.length} recipient{results.length === 1 ? "" : "s"}
           </p>
         </div>
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           {results.map((r, i) => (
             <div
-              key={r.address}
+              key={r.address + i}
               className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div
-                    className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                    className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
                     style={{ backgroundColor: ACCENT_TINT, color: ACCENT }}
                   >
                     {i + 1}
                   </div>
-                  <span className="font-mono text-sm text-neutral-900 truncate">
+                  <span className="font-mono text-sm text-neutral-900">
                     {truncate(r.address)}
                   </span>
                 </div>
                 <span className="font-bold text-base shrink-0" style={{ color: ACCENT }}>
-                  {Number(r.amount).toFixed(2)} USDC
+                  {r.amount} USDC
                 </span>
               </div>
-              <div className="mt-2.5 pt-2.5 border-t border-neutral-100">
+              <div className="mt-3 pt-3 border-t border-neutral-100 flex flex-wrap items-center gap-2">
                 {r.txHash ? (
-                  <a
-                    href={`${EXPLORER_URL}/tx/${r.txHash}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-semibold"
-                    style={{ color: ACCENT }}
-                  >
-                    View on ArcScan →
-                  </a>
+                  <>
+                    <a
+                      href={`${EXPLORER_URL}/tx/${r.txHash}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-white border transition active:scale-[.98] hover:shadow-sm"
+                      style={{ color: ACCENT, borderColor: "#C7E9DC" }}
+                    >
+                      View on ArcScan →
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(r.txHash!);
+                        setCopiedTx(r.txHash!);
+                        setTimeout(() => setCopiedTx((c) => (c === r.txHash ? null : c)), 2000);
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-white border transition active:scale-[.98] hover:shadow-sm"
+                      style={{ color: ACCENT, borderColor: "#C7E9DC" }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                      </svg>
+                      {copiedTx === r.txHash ? "Copied!" : "Copy tx hash"}
+                    </button>
+                  </>
                 ) : (
                   <div className="text-xs text-red-600 break-words">{r.error}</div>
                 )}
@@ -417,11 +464,12 @@ function App() {
           onClick={() => {
             setResults(null);
             setAmount("");
+            setCopiedTx(null);
           }}
           className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98] shadow-sm"
           style={{ backgroundColor: ACCENT }}
         >
-          Start new split
+          New Split
         </button>
       </div>
     );
