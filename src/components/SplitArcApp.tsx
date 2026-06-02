@@ -253,8 +253,8 @@ function App() {
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState<Mode>("equal");
   const [recipients, setRecipients] = useState<Recipient[]>([
-    { id: uid(), address: "", percent: "50" },
-    { id: uid(), address: "", percent: "50" },
+    { id: uid(), address: "", percent: "50", chain: "arc" },
+    { id: uid(), address: "", percent: "50", chain: "arc" },
   ]);
   const [sending, setSending] = useState(false);
   const [results, setResults] = useState<SendResult[] | null>(null);
