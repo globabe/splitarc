@@ -272,7 +272,7 @@ function App() {
 
   function addRecipient() {
     if (recipients.length >= 10) return;
-    setRecipients((rs) => [...rs, { id: uid(), address: "", percent: "0" }]);
+    setRecipients((rs) => [...rs, { id: uid(), address: "", percent: "0", chain: "arc" }]);
   }
   function removeRecipient(id: string) {
     setRecipients((rs) => (rs.length <= 1 ? rs : rs.filter((r) => r.id !== id)));
