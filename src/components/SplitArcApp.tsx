@@ -257,6 +257,7 @@ function App() {
   const [sending, setSending] = useState(false);
   const [results, setResults] = useState<SendResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copiedTx, setCopiedTx] = useState<string | null>(null);
 
   const totalAmount = parseFloat(amount || "0") || 0;
   const validRecipients = recipients.filter((r) => r.address.trim().length > 0);
