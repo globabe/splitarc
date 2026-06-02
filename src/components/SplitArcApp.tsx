@@ -128,6 +128,55 @@ function CheckIcon() {
   );
 }
 
+function ChainBadge({ chain }: { chain: ChainInfo }) {
+  if (chain.isArc) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+        style={{ backgroundColor: ACCENT_TINT, color: ACCENT }}
+      >
+        ⚡ Instant
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+      🌉 Bridged
+    </span>
+  );
+}
+
+function ChainSelect({
+  value,
+  onChange,
+}: {
+  value: ChainKey;
+  onChange: (c: ChainKey) => void;
+}) {
+  return (
+    <div className="relative inline-flex items-center">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as ChainKey)}
+        className="appearance-none text-xs font-semibold pl-7 pr-6 py-1 rounded-lg bg-neutral-50 border border-neutral-200 text-neutral-800 outline-none cursor-pointer hover:bg-neutral-100"
+      >
+        {CHAIN_LIST.map((c) => (
+          <option key={c.key} value={c.key}>
+            {c.shortName}
+          </option>
+        ))}
+      </select>
+      <span
+        className="absolute left-1.5 h-4 w-4 rounded-full flex items-center justify-center text-[10px] font-bold text-white pointer-events-none"
+        style={{ backgroundColor: CHAINS[value].color }}
+      >
+        {CHAINS[value].icon}
+      </span>
+      <span className="absolute right-1.5 text-neutral-400 text-[10px] pointer-events-none">▾</span>
+    </div>
+  );
+}
+
 function Header({ children }: { children?: React.ReactNode }) {
   return (
     <div className="mb-6">
