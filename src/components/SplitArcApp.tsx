@@ -333,23 +333,38 @@ function App() {
       const out: SendResult[] = [];
       for (const r of validRecipients) {
         const amt = amountFor(r).toFixed(USDC_DECIMALS);
+        const chainInfo = CHAINS[r.chain];
         try {
+          // For Arc recipients: direct kit.send() on Arc Testnet.
+          // For other chains: route via Circle's CCTP bridge by setting the
+          // destination chain on the send call — App Kit handles the burn/mint.
+          const sendPayload = chainInfo.isArc
+            ? {
+                from: { adapter, chain: "Arc_Testnet" },
+                to: r.address.trim(),
+                amount: amt,
+                token: "USDC",
+              }
+            : {
+                from: { adapter, chain: "Arc_Testnet" },
+                to: { address: r.address.trim(), chain: chainInfo.kitChain },
+                amount: amt,
+                token: "USDC",
+                route: "cctp" as const,
+              };
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const result: any = await kit.send({
-            from: { adapter, chain: "Arc_Testnet" } as never,
-            to: r.address.trim(),
-            amount: amt,
-            token: "USDC",
-          });
+          const result: any = await kit.send(sendPayload as never);
           out.push({
             address: r.address.trim(),
             amount: amt,
+            chain: r.chain,
             txHash: result?.txHash ?? result?.hash,
           });
         } catch (e) {
           out.push({
             address: r.address.trim(),
             amount: amt,
+            chain: r.chain,
             error: e instanceof Error ? e.message : String(e),
           });
         }
