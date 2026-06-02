@@ -646,19 +646,37 @@ function App() {
       </div>
 
       {/* Summary */}
-      <div
-        className="rounded-2xl border p-4 text-sm space-y-2"
-        style={{ backgroundColor: ACCENT_TINT, borderColor: "#C7E9DC" }}
-      >
-        <Row label="Total" value={`${totalAmount.toFixed(2)} USDC`} accent />
-        <Row label="Recipients" value={String(validRecipients.length)} />
-        {mode === "equal" && validRecipients.length > 0 && (
-          <Row label="Per wallet" value={`${equalShare.toFixed(2)} USDC`} />
-        )}
-        <div className="border-t my-1" style={{ borderColor: "#C7E9DC" }} />
-        <Row label="Est. gas" value="~0.01 USDC" />
-        <Row label="Network" value="Arc Testnet" />
-      </div>
+      {(() => {
+        const uniqueChains = new Set(validRecipients.map((r) => r.chain));
+        const isCrossChain = uniqueChains.size > 1 || (uniqueChains.size === 1 && !uniqueChains.has("arc"));
+        return (
+          <div
+            className="rounded-2xl border p-4 text-sm space-y-2"
+            style={{ backgroundColor: ACCENT_TINT, borderColor: "#C7E9DC" }}
+          >
+            <Row label="Total" value={`${totalAmount.toFixed(2)} USDC`} accent />
+            <Row label="Recipients" value={String(validRecipients.length)} />
+            {mode === "equal" && validRecipients.length > 0 && (
+              <Row label="Per wallet" value={`${equalShare.toFixed(2)} USDC`} />
+            )}
+            <div className="border-t my-1" style={{ borderColor: "#C7E9DC" }} />
+            <Row label="Est. gas" value="~0.01 USDC" />
+            <Row
+              label="Network"
+              value={
+                isCrossChain
+                  ? `Cross-chain split · ${uniqueChains.size} chain${uniqueChains.size === 1 ? "" : "s"}`
+                  : "Arc Testnet"
+              }
+            />
+            {isCrossChain && (
+              <div className="text-xs text-neutral-600 pt-1">
+                🌉 Non-Arc recipients are bridged via Circle CCTP.
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {error && (
         <div className="rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm p-4">
