@@ -16,11 +16,11 @@ import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
 import { getWagmiConfig } from "@/lib/wagmi";
 import {
   ARC_TESTNET_ID,
-  EXPLORER_URL,
   USDC_ADDRESS,
   USDC_DECIMALS,
   arcTestnet,
 } from "@/lib/arc";
+import { CHAINS, CHAIN_LIST, type ChainKey, type ChainInfo } from "@/lib/chains";
 
 type Mode = "equal" | "custom";
 
