@@ -28,11 +28,13 @@ type Recipient = {
   id: string;
   address: string;
   percent: string;
+  chain: ChainKey;
 };
 
 type SendResult = {
   address: string;
   amount: string;
+  chain: ChainKey;
   txHash?: string;
   error?: string;
 };
