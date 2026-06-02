@@ -421,62 +421,69 @@ function App() {
           </p>
         </div>
         <div className="space-y-3">
-          {results.map((r, i) => (
-            <div
-              key={r.address + i}
-              className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div
-                    className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                    style={{ backgroundColor: ACCENT_TINT, color: ACCENT }}
-                  >
-                    {i + 1}
+          {results.map((r, i) => {
+            const chainInfo = CHAINS[r.chain];
+            return (
+              <div
+                key={r.address + i}
+                className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 text-white"
+                      style={{ backgroundColor: chainInfo.color }}
+                      title={chainInfo.name}
+                    >
+                      {chainInfo.icon}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-mono text-sm text-neutral-900 truncate">
+                        {truncate(r.address)}
+                      </span>
+                      <ChainBadge chain={chainInfo} />
+                    </div>
                   </div>
-                  <span className="font-mono text-sm text-neutral-900">
-                    {truncate(r.address)}
+                  <span className="font-bold text-base shrink-0" style={{ color: ACCENT }}>
+                    {r.amount} USDC
                   </span>
                 </div>
-                <span className="font-bold text-base shrink-0" style={{ color: ACCENT }}>
-                  {r.amount} USDC
-                </span>
+                <div className="mt-3 pt-3 border-t border-neutral-100 flex flex-wrap items-center gap-2">
+                  {r.txHash ? (
+                    <>
+                      <a
+                        href={chainInfo.explorerTx(r.txHash)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-white border transition active:scale-[.98] hover:shadow-sm"
+                        style={{ color: ACCENT, borderColor: "#C7E9DC" }}
+                      >
+                        View on {chainInfo.explorerName} →
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(r.txHash!);
+                          setCopiedTx(r.txHash!);
+                          setTimeout(() => setCopiedTx((c) => (c === r.txHash ? null : c)), 2000);
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-white border transition active:scale-[.98] hover:shadow-sm"
+                        style={{ color: ACCENT, borderColor: "#C7E9DC" }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                        </svg>
+                        {copiedTx === r.txHash ? "Copied!" : "Copy tx hash"}
+                      </button>
+                    </>
+                  ) : (
+                    <div className="text-xs text-red-600 break-words">{r.error}</div>
+                  )}
+                </div>
               </div>
-              <div className="mt-3 pt-3 border-t border-neutral-100 flex flex-wrap items-center gap-2">
-                {r.txHash ? (
-                  <>
-                    <a
-                      href={`${EXPLORER_URL}/tx/${r.txHash}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-white border transition active:scale-[.98] hover:shadow-sm"
-                      style={{ color: ACCENT, borderColor: "#C7E9DC" }}
-                    >
-                      View on ArcScan →
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(r.txHash!);
-                        setCopiedTx(r.txHash!);
-                        setTimeout(() => setCopiedTx((c) => (c === r.txHash ? null : c)), 2000);
-                      }}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-white border transition active:scale-[.98] hover:shadow-sm"
-                      style={{ color: ACCENT, borderColor: "#C7E9DC" }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                      </svg>
-                      {copiedTx === r.txHash ? "Copied!" : "Copy tx hash"}
-                    </button>
-                  </>
-                ) : (
-                  <div className="text-xs text-red-600 break-words">{r.error}</div>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         <button
           type="button"
