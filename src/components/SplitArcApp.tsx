@@ -568,6 +568,7 @@ function App() {
 
         {recipients.map((r, i) => {
           const calc = amountFor(r);
+          const chainInfo = CHAINS[r.chain];
           return (
             <div
               key={r.id}
@@ -580,13 +581,20 @@ function App() {
                 >
                   {i + 1}
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 space-y-2">
                   <input
-                    placeholder="0x… wallet address"
+                    placeholder={r.chain === "solana" ? "Solana wallet address" : "0x… wallet address"}
                     value={r.address}
                     onChange={(e) => updateRecipient(r.id, { address: e.target.value })}
                     className="w-full font-mono text-xs outline-none bg-transparent text-neutral-900 placeholder:text-neutral-400"
                   />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <ChainSelect
+                      value={r.chain}
+                      onChange={(c) => updateRecipient(r.id, { chain: c })}
+                    />
+                    <ChainBadge chain={chainInfo} />
+                  </div>
                 </div>
                 <button
                   type="button"
