@@ -1,15 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import SplitArcApp from "@/components/SplitArcApp";
+import LandingPage from "@/components/LandingPage";
 
 export const Route = createFileRoute("/")({
-  component: SplitArcApp,
+  component: LandingPage,
   head: () => ({
     meta: [
-      { title: "SplitArc — USDC split payments on Arc Testnet" },
+      { title: "SplitArc — Split USDC to anyone, instantly" },
       {
         name: "description",
         content:
-          "Split a USDC payment across multiple wallets in one go on Arc Testnet.",
+          "Pay your team, split bills, distribute revenue — all in one onchain transaction. Powered by Arc and Circle.",
       },
     ],
   }),
