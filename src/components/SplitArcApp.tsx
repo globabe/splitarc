@@ -486,11 +486,15 @@ function App() {
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <div
-                      className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 text-white"
+                      className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 text-white overflow-hidden"
                       style={{ backgroundColor: chainInfo.color }}
                       title={chainInfo.name}
                     >
-                      {chainInfo.icon}
+                      {chainInfo.logo ? (
+                        <img src={chainInfo.logo} alt="" className="h-8 w-8 object-cover" />
+                      ) : (
+                        chainInfo.icon
+                      )}
                     </div>
                     <div className="flex flex-col min-w-0">
                       <span className="font-mono text-sm text-neutral-900 truncate">
