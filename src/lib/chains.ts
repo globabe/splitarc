@@ -12,8 +12,10 @@ export type ChainInfo = {
   kitChain: string;
   explorerTx: (hash: string) => string;
   explorerName: string;
-  /** Emoji icon used as a lightweight chain logo */
+  /** Emoji icon fallback */
   icon: string;
+  /** Logo image URL */
+  logo?: string;
   color: string;
   /** True if this chain is Arc (native, instant). False = bridged via CCTP. */
   isArc: boolean;
