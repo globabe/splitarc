@@ -30,6 +30,7 @@ export const CHAINS: Record<ChainKey, ChainInfo> = {
     explorerTx: (h) => `https://testnet.arcscan.app/tx/${h}`,
     explorerName: "ArcScan",
     icon: "◆",
+    logo: arcLogo.url,
     color: "#1D9E75",
     isArc: true,
   },
