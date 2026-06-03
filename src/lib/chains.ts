@@ -1,3 +1,7 @@
+import arcLogo from "@/assets/arc.jpeg.asset.json";
+import ethLogo from "@/assets/eth.jpeg.asset.json";
+import baseLogo from "@/assets/base.jpeg.asset.json";
+
 export type ChainKey = "arc" | "ethereum" | "solana" | "base";
 
 export type ChainInfo = {
@@ -8,8 +12,10 @@ export type ChainInfo = {
   kitChain: string;
   explorerTx: (hash: string) => string;
   explorerName: string;
-  /** Emoji icon used as a lightweight chain logo */
+  /** Emoji icon fallback */
   icon: string;
+  /** Logo image URL */
+  logo?: string;
   color: string;
   /** True if this chain is Arc (native, instant). False = bridged via CCTP. */
   isArc: boolean;
@@ -24,6 +30,7 @@ export const CHAINS: Record<ChainKey, ChainInfo> = {
     explorerTx: (h) => `https://testnet.arcscan.app/tx/${h}`,
     explorerName: "ArcScan",
     icon: "◆",
+    logo: arcLogo.url,
     color: "#1D9E75",
     isArc: true,
   },
@@ -35,6 +42,7 @@ export const CHAINS: Record<ChainKey, ChainInfo> = {
     explorerTx: (h) => `https://sepolia.etherscan.io/tx/${h}`,
     explorerName: "Etherscan",
     icon: "Ξ",
+    logo: ethLogo.url,
     color: "#627EEA",
     isArc: false,
   },
@@ -57,6 +65,7 @@ export const CHAINS: Record<ChainKey, ChainInfo> = {
     explorerTx: (h) => `https://sepolia.basescan.org/tx/${h}`,
     explorerName: "BaseScan",
     icon: "B",
+    logo: baseLogo.url,
     color: "#0052FF",
     isArc: false,
   },
