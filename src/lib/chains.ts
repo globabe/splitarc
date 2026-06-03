@@ -62,9 +62,9 @@ export const CHAINS: Record<ChainKey, ChainInfo> = {
   },
 };
 
+// Solana temporarily disabled — uses base58 addresses which need separate handling.
 export const CHAIN_LIST: ChainInfo[] = [
   CHAINS.arc,
   CHAINS.ethereum,
-  CHAINS.solana,
   CHAINS.base,
 ];

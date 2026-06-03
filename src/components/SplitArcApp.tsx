@@ -361,9 +361,9 @@ function App() {
       return;
     }
     for (const r of validRecipients) {
-      // Solana uses base58 addresses; only validate EVM addresses here.
       const chainInfo = CHAINS[r.chain];
-      if (chainInfo.key !== "solana" && !isAddress(r.address.trim())) {
+      // All currently-supported chains use EVM (0x) addresses.
+      if (!isAddress(r.address.trim())) {
         setError(`Invalid wallet address for ${chainInfo.name}: ${r.address}`);
         return;
       }
@@ -384,9 +384,10 @@ function App() {
         const amt = amountFor(r).toFixed(USDC_DECIMALS);
         const chainInfo = CHAINS[r.chain];
         try {
-          // For Arc recipients: direct kit.send() on Arc Testnet.
-          // For other chains: route via Circle's CCTP bridge by setting the
-          // destination chain on the send call — App Kit handles the burn/mint.
+          // Arc → Arc: direct send.
+          // Arc → other EVM chain: bridge via Circle CCTP. App Kit expects
+          // `to` as a plain address string plus a `toChain` field naming the
+          // destination chain — passing `to` as an object fails validation.
           const sendPayload = chainInfo.isArc
             ? {
                 from: { adapter, chain: "Arc_Testnet" },
@@ -396,7 +397,8 @@ function App() {
               }
             : {
                 from: { adapter, chain: "Arc_Testnet" },
-                to: { address: r.address.trim(), chain: chainInfo.kitChain },
+                to: r.address.trim(),
+                toChain: chainInfo.kitChain,
                 amount: amt,
                 token: "USDC",
                 route: "cctp" as const,
@@ -618,6 +620,8 @@ function App() {
         {recipients.map((r, i) => {
           const calc = amountFor(r);
           const chainInfo = CHAINS[r.chain];
+          const trimmed = r.address.trim();
+          const addressInvalid = trimmed.length > 0 && !isAddress(trimmed);
           return (
             <div
               key={r.id}
@@ -632,11 +636,18 @@ function App() {
                 </div>
                 <div className="flex-1 min-w-0 space-y-2">
                   <input
-                    placeholder={r.chain === "solana" ? "Solana wallet address" : "0x… wallet address"}
+                    placeholder="0x… wallet address"
                     value={r.address}
                     onChange={(e) => updateRecipient(r.id, { address: e.target.value })}
-                    className="w-full font-mono text-xs outline-none bg-transparent text-neutral-900 placeholder:text-neutral-400"
+                    className={`w-full font-mono text-xs outline-none bg-transparent text-neutral-900 placeholder:text-neutral-400 rounded-md px-2 py-1.5 border ${
+                      addressInvalid ? "border-red-400 bg-red-50" : "border-transparent"
+                    }`}
                   />
+                  {addressInvalid && (
+                    <div className="text-[11px] font-semibold text-red-600">
+                      Invalid address — must be 0x followed by 40 hex characters
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 flex-wrap">
                     <ChainSelect
                       value={r.chain}
