@@ -42,6 +42,7 @@ export const CHAINS: Record<ChainKey, ChainInfo> = {
     explorerTx: (h) => `https://sepolia.etherscan.io/tx/${h}`,
     explorerName: "Etherscan",
     icon: "Ξ",
+    logo: ethLogo.url,
     color: "#627EEA",
     isArc: false,
   },
