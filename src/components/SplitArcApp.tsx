@@ -167,10 +167,14 @@ function ChainSelect({
         ))}
       </select>
       <span
-        className="absolute left-1.5 h-4 w-4 rounded-full flex items-center justify-center text-[10px] font-bold text-white pointer-events-none"
+        className="absolute left-1.5 h-4 w-4 rounded-full flex items-center justify-center text-[10px] font-bold text-white pointer-events-none overflow-hidden"
         style={{ backgroundColor: CHAINS[value].color }}
       >
-        {CHAINS[value].icon}
+        {CHAINS[value].logo ? (
+          <img src={CHAINS[value].logo} alt="" className="h-4 w-4 object-cover" />
+        ) : (
+          CHAINS[value].icon
+        )}
       </span>
       <span className="absolute right-1.5 text-neutral-400 text-[10px] pointer-events-none">▾</span>
     </div>
