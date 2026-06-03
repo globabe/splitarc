@@ -65,6 +65,7 @@ export const CHAINS: Record<ChainKey, ChainInfo> = {
     explorerTx: (h) => `https://sepolia.basescan.org/tx/${h}`,
     explorerName: "BaseScan",
     icon: "B",
+    logo: baseLogo.url,
     color: "#0052FF",
     isArc: false,
   },
