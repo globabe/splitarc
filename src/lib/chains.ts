@@ -1,3 +1,7 @@
+import arcLogo from "@/assets/arc.jpeg.asset.json";
+import ethLogo from "@/assets/eth.jpeg.asset.json";
+import baseLogo from "@/assets/base.jpeg.asset.json";
+
 export type ChainKey = "arc" | "ethereum" | "solana" | "base";
 
 export type ChainInfo = {
