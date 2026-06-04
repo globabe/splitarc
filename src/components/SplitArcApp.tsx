@@ -54,35 +54,17 @@ function truncate(addr?: string) {
 
 function Logo() {
   return (
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="40" height="40" rx="11" fill={ACCENT} />
-      {/* Split / fork arrow: single stem branching into two outward arrows */}
-      <path
-        d="M20 30 V22"
-        stroke="white"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      <path
-        d="M20 22 L13 15 M20 22 L27 15"
-        stroke="white"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      {/* Arrowheads */}
-      <path
-        d="M13 15 L13 11 M13 15 L17 15"
-        stroke="white"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      <path
-        d="M27 15 L27 11 M27 15 L23 15"
-        stroke="white"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-    </svg>
+    <span
+      className="flex h-10 w-10 items-center justify-center rounded-[11px]"
+      style={{ background: ACCENT }}
+      aria-hidden
+    >
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M4 12h6m0 0l-3-3m3 3l-3 3" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M14 6h6m0 0l-3-3m3 3l-3 3" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M14 18h6m0 0l-3-3m3 3l-3 3" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
   );
 }
 
