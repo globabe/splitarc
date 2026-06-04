@@ -168,13 +168,13 @@ function Header({ children }: { children?: React.ReactNode }) {
   return (
     <div className="mb-6">
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
+        <Link to="/" className="flex items-center gap-3 group" aria-label="Back to landing page">
           <Logo />
           <div className="leading-tight">
-            <div className="font-bold text-xl text-neutral-900">SplitArc</div>
+            <div className="font-bold text-xl text-neutral-900 group-hover:underline">SplitArc</div>
             <div className="text-xs text-neutral-500">USDC split payments</div>
           </div>
-        </div>
+        </Link>
         <span
           className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
           style={{ backgroundColor: ACCENT_TINT, color: ACCENT }}
