@@ -35,8 +35,13 @@ function LaunchButton({
   children?: React.ReactNode;
 }) {
   return (
-    <Link
-      to="/app"
+    <a
+      href="/app"
+      onClick={() => {
+        if (typeof window !== "undefined") {
+          window.sessionStorage.setItem("splitarc:launched", "1");
+        }
+      }}
       className={
         "inline-flex items-center justify-center rounded-md px-5 py-2.5 text-sm font-medium transition-all duration-200 " +
         (solid
@@ -54,8 +59,14 @@ function LaunchButton({
       }
     >
       {children}
-    </Link>
+    </a>
   );
+}
+
+function markAppLaunched() {
+  if (typeof window !== "undefined") {
+    window.sessionStorage.setItem("splitarc:launched", "1");
+  }
 }
 
 function useFadeIn() {
@@ -231,9 +242,9 @@ export default function LandingPage() {
           <div className="text-sm text-neutral-400">
             Built on Arc · Powered by Circle · Testnet
           </div>
-          <Link to="/app" className="text-sm font-medium" style={{ color: GREEN }}>
+          <a href="/app" onClick={markAppLaunched} className="text-sm font-medium" style={{ color: GREEN }}>
             Launch App →
-          </Link>
+          </a>
         </div>
         <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="mx-auto max-w-6xl px-6 py-5 text-xs text-neutral-500 text-center">
