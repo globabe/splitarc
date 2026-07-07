@@ -548,6 +548,20 @@ function App() {
     <div className="space-y-5">
       <WalletBar />
 
+      {/* Split name */}
+      <div className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
+        <label className="text-[11px] uppercase tracking-wider text-neutral-400 font-semibold">
+          Split name
+        </label>
+        <input
+          placeholder="e.g. Team dinner"
+          value={splitName}
+          onChange={(e) => setSplitName(e.target.value)}
+          className="mt-1 w-full text-sm font-semibold outline-none bg-transparent text-neutral-900 placeholder:text-neutral-400"
+        />
+      </div>
+
+
       {/* Hero amount */}
       <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-7 shadow-sm">
         <div className="text-center">
