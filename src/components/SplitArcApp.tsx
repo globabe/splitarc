@@ -7,17 +7,19 @@ import {
   useDisconnect,
   useSwitchChain,
   useChainId,
+  useWriteContract,
+  usePublicClient,
 } from "wagmi";
-import { erc20Abi, formatUnits } from "viem";
+import { erc20Abi, formatUnits, parseUnits } from "viem";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { isAddress, type EIP1193Provider } from "viem";
-import { AppKit } from "@circle-fin/app-kit";
-import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
+import { isAddress } from "viem";
 import { getWagmiConfig } from "@/lib/wagmi";
 import {
   ARC_TESTNET_ID,
   USDC_ADDRESS,
   USDC_DECIMALS,
+  SPLITARC_ADDRESS,
+  SPLITARC_ABI,
   arcTestnet,
 } from "@/lib/arc";
 import { CHAINS, CHAIN_LIST, type ChainKey, type ChainInfo } from "@/lib/chains";
