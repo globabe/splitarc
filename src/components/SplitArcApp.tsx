@@ -7,17 +7,19 @@ import {
   useDisconnect,
   useSwitchChain,
   useChainId,
+  useWriteContract,
+  usePublicClient,
 } from "wagmi";
-import { erc20Abi, formatUnits } from "viem";
+import { erc20Abi, formatUnits, parseUnits } from "viem";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { isAddress, type EIP1193Provider } from "viem";
-import { AppKit } from "@circle-fin/app-kit";
-import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
+import { isAddress } from "viem";
 import { getWagmiConfig } from "@/lib/wagmi";
 import {
   ARC_TESTNET_ID,
   USDC_ADDRESS,
   USDC_DECIMALS,
+  SPLITARC_ADDRESS,
+  SPLITARC_ABI,
   arcTestnet,
 } from "@/lib/arc";
 import { CHAINS, CHAIN_LIST, type ChainKey, type ChainInfo } from "@/lib/chains";
@@ -271,8 +273,10 @@ function WalletBar() {
 }
 
 function App() {
-  const { address, isConnected, connector } = useAccount();
+  const { address, isConnected } = useAccount();
   const chainId = useChainId();
+  const publicClient = usePublicClient({ chainId: ARC_TESTNET_ID });
+  const { writeContractAsync } = useWriteContract();
 
   const { data: balanceRaw } = useReadContract({
     address: USDC_ADDRESS,
@@ -285,16 +289,18 @@ function App() {
   const balanceStr =
     typeof balanceRaw === "bigint" ? formatUnits(balanceRaw, USDC_DECIMALS) : undefined;
 
+  const [splitName, setSplitName] = useState("");
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState<Mode>("equal");
   const [recipients, setRecipients] = useState<Recipient[]>([
     { id: uid(), address: "", percent: "50", chain: "arc" },
     { id: uid(), address: "", percent: "50", chain: "arc" },
   ]);
-  const [sending, setSending] = useState(false);
+  const [sendStatus, setSendStatus] = useState<"idle" | "approving" | "splitting">("idle");
   const [results, setResults] = useState<SendResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedTx, setCopiedTx] = useState<string | null>(null);
+  const sending = sendStatus !== "idle";
 
   const totalAmount = parseFloat(amount || "0") || 0;
   const validRecipients = recipients.filter((r) => r.address.trim().length > 0);
@@ -334,8 +340,12 @@ function App() {
       setError("Switch your wallet to Arc Testnet to continue.");
       return;
     }
-    if (!connector) {
-      setError("Wallet not ready yet — try again in a second.");
+    if (!publicClient) {
+      setError("RPC client not ready — try again in a second.");
+      return;
+    }
+    if (!splitName.trim()) {
+      setError("Give this split a name.");
       return;
     }
     if (totalAmount <= 0) {
@@ -348,7 +358,6 @@ function App() {
     }
     for (const r of validRecipients) {
       const chainInfo = CHAINS[r.chain];
-      // All currently-supported chains use EVM (0x) addresses.
       if (!isAddress(r.address.trim())) {
         setError(`Invalid wallet address for ${chainInfo.name}: ${r.address}`);
         return;
@@ -359,60 +368,51 @@ function App() {
       return;
     }
 
-    setSending(true);
-    try {
-      const provider = (await connector.getProvider()) as EIP1193Provider;
-      const adapter = await createViemAdapterFromProvider({ provider });
-      const kit = new AppKit();
+    // Convert amounts to on-chain units (6 decimals). Guard against rounding
+    // drift so the sum of per-recipient amounts equals the approved total.
+    const perRecipientWei = validRecipients.map((r) =>
+      parseUnits(amountFor(r).toFixed(USDC_DECIMALS), USDC_DECIMALS),
+    );
+    const totalWei = perRecipientWei.reduce((a, b) => a + b, 0n);
+    const addresses = validRecipients.map((r) => r.address.trim() as `0x${string}`);
 
-      const out: SendResult[] = [];
-      for (const r of validRecipients) {
-        const amt = amountFor(r).toFixed(USDC_DECIMALS);
-        const chainInfo = CHAINS[r.chain];
-        try {
-          // Arc → Arc: direct send.
-          // Arc → other EVM chain: bridge via Circle CCTP. App Kit expects
-          // `to` as a plain address string plus a `toChain` field naming the
-          // destination chain — passing `to` as an object fails validation.
-          const sendPayload = chainInfo.isArc
-            ? {
-                from: { adapter, chain: "Arc_Testnet" },
-                to: r.address.trim(),
-                amount: amt,
-                token: "USDC",
-              }
-            : {
-                from: { adapter, chain: "Arc_Testnet" },
-                to: r.address.trim(),
-                toChain: chainInfo.kitChain,
-                amount: amt,
-                token: "USDC",
-                route: "cctp" as const,
-              };
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const result: any = await kit.send(sendPayload as never);
-          out.push({
-            address: r.address.trim(),
-            amount: amt,
-            chain: r.chain,
-            txHash: result?.txHash ?? result?.hash,
-          });
-        } catch (e) {
-          out.push({
-            address: r.address.trim(),
-            amount: amt,
-            chain: r.chain,
-            error: e instanceof Error ? e.message : String(e),
-          });
-        }
-        setResults([...out]);
-      }
+    try {
+      setSendStatus("approving");
+      const approveHash = await writeContractAsync({
+        address: USDC_ADDRESS,
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [SPLITARC_ADDRESS, totalWei],
+        chainId: ARC_TESTNET_ID,
+      });
+      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+
+      setSendStatus("splitting");
+      const splitHash = await writeContractAsync({
+        address: SPLITARC_ADDRESS,
+        abi: SPLITARC_ABI,
+        functionName: "split",
+        args: [splitName.trim(), addresses, perRecipientWei],
+        chainId: ARC_TESTNET_ID,
+      });
+      await publicClient.waitForTransactionReceipt({ hash: splitHash });
+
+      setResults(
+        validRecipients.map((r, i) => ({
+          address: r.address.trim(),
+          amount: formatUnits(perRecipientWei[i], USDC_DECIMALS),
+          chain: r.chain,
+          txHash: splitHash,
+        })),
+      );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error sending transactions.");
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg.includes("User rejected") ? "Transaction rejected in wallet." : msg);
     } finally {
-      setSending(false);
+      setSendStatus("idle");
     }
   }
+
 
   if (results) {
     return (
@@ -547,6 +547,20 @@ function App() {
   return (
     <div className="space-y-5">
       <WalletBar />
+
+      {/* Split name */}
+      <div className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
+        <label className="text-[11px] uppercase tracking-wider text-neutral-400 font-semibold">
+          Split name
+        </label>
+        <input
+          placeholder="e.g. Team dinner"
+          value={splitName}
+          onChange={(e) => setSplitName(e.target.value)}
+          className="mt-1 w-full text-sm font-semibold outline-none bg-transparent text-neutral-900 placeholder:text-neutral-400"
+        />
+      </div>
+
 
       {/* Hero amount */}
       <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-7 shadow-sm">
@@ -746,13 +760,15 @@ function App() {
         }}
       >
         <SendIcon />
-        {sending
-          ? "Sending…"
-          : !isConnected
-            ? "Connect wallet to send"
-            : totalAmount <= 0
-              ? "Enter an amount"
-              : "Split & Send"}
+        {sendStatus === "approving"
+          ? "Approving USDC…"
+          : sendStatus === "splitting"
+            ? "Sending split…"
+            : !isConnected
+              ? "Connect wallet to send"
+              : totalAmount <= 0
+                ? "Enter an amount"
+                : "Split & Send"}
       </button>
     </div>
   );
