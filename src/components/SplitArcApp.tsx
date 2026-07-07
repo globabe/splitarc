@@ -760,13 +760,15 @@ function App() {
         }}
       >
         <SendIcon />
-        {sending
-          ? "Sending…"
-          : !isConnected
-            ? "Connect wallet to send"
-            : totalAmount <= 0
-              ? "Enter an amount"
-              : "Split & Send"}
+        {sendStatus === "approving"
+          ? "Approving USDC…"
+          : sendStatus === "splitting"
+            ? "Sending split…"
+            : !isConnected
+              ? "Connect wallet to send"
+              : totalAmount <= 0
+                ? "Enter an amount"
+                : "Split & Send"}
       </button>
     </div>
   );
