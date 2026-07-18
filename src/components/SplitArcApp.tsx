@@ -270,25 +270,27 @@ function WalletBar() {
             Switch to Arc
           </button>
         ) : (
-          <div className="text-right">
-            <div className="text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">
-              Balance
+          <div className="flex items-center gap-2">
+            <div className="text-right">
+              <div className="text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">
+                Balance
+              </div>
+              <div className="text-sm font-bold" style={{ color: ACCENT }}>
+                {balance ? Number(balance).toFixed(2) : "0.00"} USDC
+              </div>
             </div>
-            <div className="text-sm font-bold" style={{ color: ACCENT }}>
-              {balance ? Number(balance).toFixed(2) : "0.00"} USDC
-            </div>
+            <a
+              href="https://faucet.circle.com"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition active:scale-[.98] hover:bg-neutral-50"
+              style={{ color: ACCENT, borderColor: "#C7E9DC" }}
+            >
+              <DropletIcon />
+              Get test USDC
+            </a>
           </div>
         )}
-        <a
-          href="https://faucet.circle.com"
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition active:scale-[.98] hover:bg-neutral-50"
-          style={{ color: ACCENT, borderColor: "#C7E9DC" }}
-        >
-          <DropletIcon />
-          Get test USDC
-        </a>
         <button
           type="button"
           onClick={() => disconnect()}
