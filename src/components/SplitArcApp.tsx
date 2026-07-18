@@ -279,6 +279,16 @@ function WalletBar() {
             </div>
           </div>
         )}
+        <a
+          href="https://faucet.circle.com"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition active:scale-[.98] hover:bg-neutral-50"
+          style={{ color: ACCENT, borderColor: "#C7E9DC" }}
+        >
+          <DropletIcon />
+          Get test USDC
+        </a>
         <button
           type="button"
           onClick={() => disconnect()}
