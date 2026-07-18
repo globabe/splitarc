@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "sdk_version": "0.23.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "none"
+  },
+  "mcp": {
+    "server": {
+      "name": "splitarc-mcp",
+      "version": "0.1.0",
+      "title": "SplitArc MCP"
+    },
+    "tools": [
+      {
+        "name": "get_split_config",
+        "title": "Get SplitArc config",
+        "description": "Return the SplitArc smart contract address, USDC token address, and Arc Testnet chain info used by this app.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "calculate_split",
+        "title": "Calculate split amounts",
+        "description": "Compute per-recipient USDC amounts for a split. Mode 'equal' divides totalAmount evenly across recipients (remainder goes to the first recipient). Mode 'custom' uses percentages that must sum to 100. Returns human-readable USDC amounts and 6-decimal base units.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "totalAmount": {
+              "type": "string",
+              "description": "Total USDC amount as a decimal string, e.g. '100' or '12.5'."
+            },
+            "recipients": {
+              "minItems": 1,
+              "maxItems": 50,
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Recipient wallet addresses (order preserved)."
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "equal",
+                "custom"
+              ],
+              "description": "Split mode."
+            },
+            "percentages": {
+              "description": "Required when mode='custom'. Must be same length as recipients and sum to 100.",
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "required": [
+            "totalAmount",
+            "recipients",
+            "mode"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
