@@ -98,6 +98,27 @@ function SendIcon({ className }: { className?: string }) {
   );
 }
 
+function DropletIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0L12 2.69z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function CheckIcon() {
   return (
     <svg width="44" height="44" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -249,13 +270,25 @@ function WalletBar() {
             Switch to Arc
           </button>
         ) : (
-          <div className="text-right">
-            <div className="text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">
-              Balance
+          <div className="flex items-center gap-2">
+            <div className="text-right">
+              <div className="text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">
+                Balance
+              </div>
+              <div className="text-sm font-bold" style={{ color: ACCENT }}>
+                {balance ? Number(balance).toFixed(2) : "0.00"} USDC
+              </div>
             </div>
-            <div className="text-sm font-bold" style={{ color: ACCENT }}>
-              {balance ? Number(balance).toFixed(2) : "0.00"} USDC
-            </div>
+            <a
+              href="https://faucet.circle.com"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition active:scale-[.98] hover:bg-neutral-50"
+              style={{ color: ACCENT, borderColor: "#C7E9DC" }}
+            >
+              <DropletIcon />
+              Get test USDC
+            </a>
           </div>
         )}
         <button
