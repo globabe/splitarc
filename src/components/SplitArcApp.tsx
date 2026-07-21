@@ -1165,15 +1165,25 @@ function ContactsPanel({
 
   function submit() {
     setFormError(null);
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+    const trimmedAddr = addr.trim();
+    if (!trimmedName) {
       setFormError("Give this contact a name.");
       return;
     }
-    if (!isAddress(addr.trim())) {
+    if (!isAddress(trimmedAddr)) {
       setFormError("Enter a valid 0x wallet address.");
       return;
     }
-    onAdd(name.trim(), addr.trim());
+    if (contacts.some((c) => c.address.toLowerCase() === trimmedAddr.toLowerCase())) {
+      setFormError("This address is already saved");
+      return;
+    }
+    if (contacts.some((c) => c.name.toLowerCase() === trimmedName.toLowerCase())) {
+      setFormError("A contact with this name already exists");
+      return;
+    }
+    onAdd(trimmedName, trimmedAddr);
     setName("");
     setAddr("");
   }
