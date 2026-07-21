@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   WagmiProvider,
   useAccount,
@@ -10,9 +10,8 @@ import {
   useWriteContract,
   usePublicClient,
 } from "wagmi";
-import { erc20Abi, formatUnits, parseUnits } from "viem";
+import { erc20Abi, formatUnits, parseUnits, isAddress } from "viem";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { isAddress } from "viem";
 import { getWagmiConfig } from "@/lib/wagmi";
 import {
   ARC_TESTNET_ID,
@@ -20,11 +19,22 @@ import {
   USDC_DECIMALS,
   SPLITARC_ADDRESS,
   SPLITARC_ABI,
+  EXPLORER_URL,
   arcTestnet,
 } from "@/lib/arc";
 import { CHAINS, CHAIN_LIST, type ChainKey, type ChainInfo } from "@/lib/chains";
+import {
+  useContacts,
+  useHistory,
+  useTemplates,
+  findContactName,
+  type Contact,
+  type HistoryEntry,
+  type Template,
+} from "@/lib/storage";
 
 type Mode = "equal" | "custom";
+type Tab = "new" | "history" | "contacts";
 
 type Recipient = {
   id: string;
@@ -37,8 +47,7 @@ type SendResult = {
   address: string;
   amount: string;
   chain: ChainKey;
-  txHash?: string;
-  error?: string;
+  txHash: string;
 };
 
 const ACCENT = "#1D9E75";
@@ -53,6 +62,20 @@ function truncate(addr?: string) {
   if (!addr) return "";
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
+
+function arcscanTx(hash: string) {
+  return `${EXPLORER_URL}/tx/${hash}`;
+}
+
+function formatDate(ts: number) {
+  const d = new Date(ts);
+  return d.toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+/* ---------------- Icons ---------------- */
 
 function Logo() {
   return (
@@ -70,68 +93,48 @@ function Logo() {
   );
 }
 
-function SendIcon({ className }: { className?: string }) {
+function SendIcon() {
   return (
-    <svg
-      className={className}
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M22 2L11 13"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M22 2L15 22L11 13L2 9L22 2Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-function DropletIcon({ className }: { className?: string }) {
+function DropletIcon() {
   return (
-    <svg
-      className={className}
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0L12 2.69z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0L12 2.69z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-function CheckIcon() {
+function BookIcon() {
   return (
-    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M5 12.5L10 17.5L19 7.5"
-        stroke="white"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+      <path d="M4 4v16a1 1 0 0 0 1 1h14V3H5a1 1 0 0 0-1 1zm4 0v14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
+
+function PlusIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+      <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* ---------------- Chain UI ---------------- */
 
 function ChainBadge({ chain }: { chain: ChainInfo }) {
   if (chain.isArc) {
@@ -151,13 +154,7 @@ function ChainBadge({ chain }: { chain: ChainInfo }) {
   );
 }
 
-function ChainSelect({
-  value,
-  onChange,
-}: {
-  value: ChainKey;
-  onChange: (c: ChainKey) => void;
-}) {
+function ChainSelect({ value, onChange }: { value: ChainKey; onChange: (c: ChainKey) => void }) {
   return (
     <div className="relative inline-flex items-center">
       <select
@@ -185,6 +182,8 @@ function ChainSelect({
     </div>
   );
 }
+
+/* ---------------- Header + Wallet ---------------- */
 
 function Header({ children }: { children?: React.ReactNode }) {
   return (
@@ -282,7 +281,7 @@ function WalletBar() {
             <a
               href="https://faucet.circle.com"
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition active:scale-[.98] hover:bg-neutral-50"
               style={{ color: ACCENT, borderColor: "#C7E9DC" }}
             >
@@ -305,11 +304,107 @@ function WalletBar() {
   );
 }
 
+/* ---------------- Tab bar ---------------- */
+
+function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+  const tabs: { key: Tab; label: string; icon: string }[] = [
+    { key: "new", label: "New Split", icon: "💸" },
+    { key: "history", label: "History", icon: "🕐" },
+    { key: "contacts", label: "Contacts", icon: "👥" },
+  ];
+  return (
+    <div className="grid grid-cols-3 gap-1.5 bg-neutral-100 p-1 rounded-2xl">
+      {tabs.map((t) => (
+        <button
+          key={t.key}
+          type="button"
+          onClick={() => setTab(t.key)}
+          className={`py-2.5 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-1.5 ${
+            tab === t.key ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"
+          }`}
+        >
+          <span>{t.icon}</span>
+          <span>{t.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ---------------- Contact picker ---------------- */
+
+function ContactPicker({
+  contacts,
+  onPick,
+  onClose,
+}: {
+  contacts: Contact[];
+  onPick: (c: Contact) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      className="absolute z-20 mt-1 right-0 w-64 rounded-2xl border border-neutral-200 bg-white shadow-lg overflow-hidden"
+    >
+      <div className="px-3 py-2 text-[11px] uppercase tracking-wider text-neutral-400 font-semibold border-b border-neutral-100">
+        Pick a contact
+      </div>
+      {contacts.length === 0 ? (
+        <div className="p-4 text-xs text-neutral-500 text-center">
+          No contacts yet. Add some from the Contacts tab.
+        </div>
+      ) : (
+        <div className="max-h-64 overflow-auto">
+          {contacts.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onPick(c)}
+              className="w-full text-left px-3 py-2.5 hover:bg-neutral-50 flex items-center justify-between gap-2"
+            >
+              <span className="text-sm font-semibold text-neutral-900 truncate">{c.name}</span>
+              <span className="font-mono text-[11px] text-neutral-500 shrink-0">
+                {truncate(c.address)}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------- Main App ---------------- */
+
+type PrefillRecipient = { address: string; percent: string; chain: ChainKey };
+type Prefill = {
+  name: string;
+  mode: Mode;
+  amount?: string;
+  recipients: PrefillRecipient[];
+};
+
 function App() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const publicClient = usePublicClient({ chainId: ARC_TESTNET_ID });
   const { writeContractAsync } = useWriteContract();
+
+  const contactsStore = useContacts(address);
+  const historyStore = useHistory(address);
+  const templatesStore = useTemplates(address);
+
+  const [tab, setTab] = useState<Tab>("new");
 
   const { data: balanceRaw } = useReadContract({
     address: USDC_ADDRESS,
@@ -331,8 +426,10 @@ function App() {
   ]);
   const [sendStatus, setSendStatus] = useState<"idle" | "approving" | "splitting">("idle");
   const [results, setResults] = useState<SendResult[] | null>(null);
+  const [lastTxHash, setLastTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedTx, setCopiedTx] = useState<string | null>(null);
+  const [pickerOpenFor, setPickerOpenFor] = useState<string | null>(null);
   const sending = sendStatus !== "idle";
 
   const totalAmount = parseFloat(amount || "0") || 0;
@@ -359,6 +456,44 @@ function App() {
     if (mode === "equal") return equalShare;
     const pct = parseFloat(r.percent || "0") || 0;
     return (totalAmount * pct) / 100;
+  }
+
+  function applyPrefill(p: Prefill) {
+    setSplitName(p.name);
+    setMode(p.mode);
+    if (p.amount !== undefined) setAmount(p.amount);
+    setRecipients(
+      p.recipients.map((r) => ({
+        id: uid(),
+        address: r.address,
+        percent: r.percent,
+        chain: r.chain,
+      })),
+    );
+    setResults(null);
+    setError(null);
+    setTab("new");
+  }
+
+  function saveAsTemplate() {
+    if (!splitName.trim()) {
+      setError("Give this split a name before saving as template.");
+      return;
+    }
+    if (recipients.every((r) => !r.address.trim())) {
+      setError("Add at least one recipient before saving as template.");
+      return;
+    }
+    const tpl: Template = {
+      id: uid(),
+      name: splitName.trim(),
+      mode,
+      recipients: recipients
+        .filter((r) => r.address.trim())
+        .map((r) => ({ address: r.address.trim(), percent: r.percent, chain: r.chain })),
+    };
+    templatesStore.add(tpl);
+    setError(null);
   }
 
   async function handleSend() {
@@ -390,9 +525,8 @@ function App() {
       return;
     }
     for (const r of validRecipients) {
-      const chainInfo = CHAINS[r.chain];
       if (!isAddress(r.address.trim())) {
-        setError(`Invalid wallet address for ${chainInfo.name}: ${r.address}`);
+        setError(`Invalid wallet address: ${r.address}`);
         return;
       }
     }
@@ -401,8 +535,6 @@ function App() {
       return;
     }
 
-    // Convert amounts to on-chain units (6 decimals). Guard against rounding
-    // drift so the sum of per-recipient amounts equals the approved total.
     const perRecipientWei = validRecipients.map((r) =>
       parseUnits(amountFor(r).toFixed(USDC_DECIMALS), USDC_DECIMALS),
     );
@@ -430,14 +562,25 @@ function App() {
       });
       await publicClient.waitForTransactionReceipt({ hash: splitHash });
 
-      setResults(
-        validRecipients.map((r, i) => ({
-          address: r.address.trim(),
-          amount: formatUnits(perRecipientWei[i], USDC_DECIMALS),
-          chain: r.chain,
-          txHash: splitHash,
-        })),
-      );
+      const recs: SendResult[] = validRecipients.map((r, i) => ({
+        address: r.address.trim(),
+        amount: formatUnits(perRecipientWei[i], USDC_DECIMALS),
+        chain: r.chain,
+        txHash: splitHash,
+      }));
+      setResults(recs);
+      setLastTxHash(splitHash);
+
+      const entry: HistoryEntry = {
+        id: uid(),
+        name: splitName.trim(),
+        total: totalAmount.toFixed(USDC_DECIMALS),
+        timestamp: Date.now(),
+        txHash: splitHash,
+        mode,
+        recipients: recs.map((r) => ({ address: r.address, amount: r.amount, chain: r.chain })),
+      };
+      historyStore.add(entry);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg.includes("User rejected") ? "Transaction rejected in wallet." : msg);
@@ -446,43 +589,23 @@ function App() {
     }
   }
 
-
-  if (results) {
+  /* ------- Success screen ------- */
+  if (results && lastTxHash) {
     return (
       <div className="rounded-3xl p-6 space-y-6" style={{ backgroundColor: ACCENT_TINT }}>
         <style>{`
-          @keyframes check-draw {
-            0% { stroke-dashoffset: 60; }
-            100% { stroke-dashoffset: 0; }
-          }
-          @keyframes check-pop {
-            0% { transform: scale(0); opacity: 0; }
-            60% { transform: scale(1.1); opacity: 1; }
-            100% { transform: scale(1); opacity: 1; }
-          }
-          .check-path {
-            stroke-dasharray: 60;
-            stroke-dashoffset: 60;
-            animation: check-draw 0.6s ease-out 0.2s forwards;
-          }
-          .check-circle {
-            animation: check-pop 0.5s ease-out forwards;
-          }
+          @keyframes check-draw { 0% { stroke-dashoffset: 60; } 100% { stroke-dashoffset: 0; } }
+          @keyframes check-pop { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+          .check-path { stroke-dasharray: 60; stroke-dashoffset: 60; animation: check-draw 0.6s ease-out 0.2s forwards; }
+          .check-circle { animation: check-pop 0.5s ease-out forwards; }
         `}</style>
         <div className="text-center pt-4">
           <div
             className="check-circle mx-auto h-24 w-24 rounded-full flex items-center justify-center shadow-lg"
             style={{ backgroundColor: ACCENT, boxShadow: `0 10px 30px -10px ${ACCENT}80` }}
           >
-            <svg width="52" height="52" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path
-                className="check-path"
-                d="M5 12.5L10 17.5L19 7.5"
-                stroke="white"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+            <svg width="52" height="52" viewBox="0 0 24 24" fill="none">
+              <path className="check-path" d="M5 12.5L10 17.5L19 7.5" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
           <h2 className="mt-6 text-3xl font-bold text-neutral-900">Split Complete!</h2>
@@ -493,17 +616,14 @@ function App() {
         <div className="space-y-3">
           {results.map((r, i) => {
             const chainInfo = CHAINS[r.chain];
+            const contactName = findContactName(contactsStore.items, r.address);
             return (
-              <div
-                key={r.address + i}
-                className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
-              >
+              <div key={r.address + i} className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <div
                       className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 text-white overflow-hidden"
                       style={{ backgroundColor: chainInfo.color }}
-                      title={chainInfo.name}
                     >
                       {chainInfo.logo ? (
                         <img src={chainInfo.logo} alt="" className="h-8 w-8 object-cover" />
@@ -512,57 +632,52 @@ function App() {
                       )}
                     </div>
                     <div className="flex flex-col min-w-0">
-                      <span className="font-mono text-sm text-neutral-900 truncate">
+                      <span className="text-sm text-neutral-900 truncate font-semibold">
+                        {contactName ?? truncate(r.address)}
+                      </span>
+                      <span className="font-mono text-[11px] text-neutral-500 truncate">
                         {truncate(r.address)}
                       </span>
-                      <ChainBadge chain={chainInfo} />
                     </div>
                   </div>
                   <span className="font-bold text-base shrink-0" style={{ color: ACCENT }}>
                     {r.amount} USDC
                   </span>
                 </div>
-                <div className="mt-3 pt-3 border-t border-neutral-100 flex flex-wrap items-center gap-2">
-                  {r.txHash ? (
-                    <>
-                      <a
-                        href={chainInfo.explorerTx(r.txHash)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-white border transition active:scale-[.98] hover:shadow-sm"
-                        style={{ color: ACCENT, borderColor: "#C7E9DC" }}
-                      >
-                        View on {chainInfo.explorerName} →
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(r.txHash!);
-                          setCopiedTx(r.txHash!);
-                          setTimeout(() => setCopiedTx((c) => (c === r.txHash ? null : c)), 2000);
-                        }}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-white border transition active:scale-[.98] hover:shadow-sm"
-                        style={{ color: ACCENT, borderColor: "#C7E9DC" }}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                        </svg>
-                        {copiedTx === r.txHash ? "Copied!" : "Copy tx hash"}
-                      </button>
-                    </>
-                  ) : (
-                    <div className="text-xs text-red-600 break-words">{r.error}</div>
-                  )}
-                </div>
               </div>
             );
           })}
         </div>
+
+        <div className="rounded-2xl bg-white border border-neutral-200 p-3 flex flex-wrap items-center gap-2">
+          <a
+            href={arcscanTx(lastTxHash)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border transition active:scale-[.98] hover:shadow-sm"
+            style={{ color: ACCENT, borderColor: "#C7E9DC" }}
+          >
+            View on ArcScan →
+          </a>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(lastTxHash);
+              setCopiedTx(lastTxHash);
+              setTimeout(() => setCopiedTx((c) => (c === lastTxHash ? null : c)), 2000);
+            }}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border transition active:scale-[.98] hover:shadow-sm"
+            style={{ color: ACCENT, borderColor: "#C7E9DC" }}
+          >
+            {copiedTx === lastTxHash ? "Copied!" : "Copy transaction hash"}
+          </button>
+        </div>
+
         <button
           type="button"
           onClick={() => {
             setResults(null);
+            setLastTxHash(null);
             setAmount("");
             setCopiedTx(null);
           }}
@@ -580,232 +695,605 @@ function App() {
   return (
     <div className="space-y-5">
       <WalletBar />
+      <TabBar tab={tab} setTab={setTab} />
 
-      {/* Split name */}
-      <div className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
-        <label className="text-[11px] uppercase tracking-wider text-neutral-400 font-semibold">
-          Split name
-        </label>
-        <input
-          placeholder="e.g. Team dinner"
-          value={splitName}
-          onChange={(e) => setSplitName(e.target.value)}
-          className="mt-1 w-full text-sm font-semibold outline-none bg-transparent text-neutral-900 placeholder:text-neutral-400"
-        />
-      </div>
-
-
-      {/* Hero amount */}
-      <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-7 shadow-sm">
-        <div className="text-center">
-          <div className="text-[11px] uppercase tracking-wider text-neutral-400 font-semibold mb-2">
-            Total to split
-          </div>
-          <div className="flex items-baseline justify-center gap-2">
+      {tab === "new" && (
+        <>
+          {/* Split name */}
+          <div className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
+            <label className="text-[11px] uppercase tracking-wider text-neutral-400 font-semibold">
+              Split name
+            </label>
             <input
-              inputMode="decimal"
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))}
-              className="w-[60%] text-5xl font-bold text-center outline-none bg-transparent placeholder:text-neutral-300 tabular-nums"
-              style={{ color: amount ? "#0a0a0a" : undefined }}
+              placeholder="e.g. Team dinner"
+              value={splitName}
+              onChange={(e) => setSplitName(e.target.value)}
+              className="mt-1 w-full text-sm font-semibold outline-none bg-transparent text-neutral-900 placeholder:text-neutral-400"
             />
-            <span className="text-lg font-bold text-neutral-400">USDC</span>
           </div>
-          <div className="mt-2 text-xs text-neutral-500">
-            {isConnected
-              ? `Available: ${balanceStr ? Number(balanceStr).toFixed(2) : "0.00"} USDC`
-              : "Connect wallet to see balance"}
+
+          {/* Hero amount */}
+          <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-7 shadow-sm">
+            <div className="text-center">
+              <div className="text-[11px] uppercase tracking-wider text-neutral-400 font-semibold mb-2">
+                Total to split
+              </div>
+              <div className="flex items-baseline justify-center gap-2">
+                <input
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))}
+                  className="w-[60%] text-5xl font-bold text-center outline-none bg-transparent placeholder:text-neutral-300 tabular-nums"
+                  style={{ color: amount ? "#0a0a0a" : undefined }}
+                />
+                <span className="text-lg font-bold text-neutral-400">USDC</span>
+              </div>
+              <div className="mt-2 text-xs text-neutral-500">
+                {isConnected
+                  ? `Available: ${balanceStr ? Number(balanceStr).toFixed(2) : "0.00"} USDC`
+                  : "Connect wallet to see balance"}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Mode toggle */}
-      <div className="grid grid-cols-2 gap-1.5 bg-neutral-100 p-1 rounded-2xl">
-        {(["equal", "custom"] as Mode[]).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMode(m)}
-            className={`py-2.5 rounded-xl text-sm font-semibold transition ${
-              mode === m ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"
-            }`}
-          >
-            {m === "equal" ? "Equal split" : "Custom %"}
-          </button>
-        ))}
-      </div>
+          {/* Mode toggle */}
+          <div className="grid grid-cols-2 gap-1.5 bg-neutral-100 p-1 rounded-2xl">
+            {(["equal", "custom"] as Mode[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={`py-2.5 rounded-xl text-sm font-semibold transition ${
+                  mode === m ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"
+                }`}
+              >
+                {m === "equal" ? "Equal split" : "Custom %"}
+              </button>
+            ))}
+          </div>
 
-      {/* Recipients */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <h3 className="text-sm font-bold text-neutral-900">
-            Recipients{" "}
-            <span className="text-neutral-400 font-normal">({recipients.length}/10)</span>
-          </h3>
-          <button
-            type="button"
-            onClick={addRecipient}
-            disabled={recipients.length >= 10}
-            className="text-xs font-semibold disabled:opacity-40"
-            style={{ color: ACCENT }}
-          >
-            + Add recipient
-          </button>
-        </div>
+          {/* Recipients */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-sm font-bold text-neutral-900">
+                Recipients{" "}
+                <span className="text-neutral-400 font-normal">({recipients.length}/10)</span>
+              </h3>
+              <button
+                type="button"
+                onClick={addRecipient}
+                disabled={recipients.length >= 10}
+                className="text-xs font-semibold disabled:opacity-40"
+                style={{ color: ACCENT }}
+              >
+                + Add recipient
+              </button>
+            </div>
 
-        {recipients.map((r, i) => {
-          const calc = amountFor(r);
-          const chainInfo = CHAINS[r.chain];
-          const trimmed = r.address.trim();
-          const addressInvalid = trimmed.length > 0 && !isAddress(trimmed);
-          return (
-            <div
-              key={r.id}
-              className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
-            >
-              <div className="flex items-start gap-3">
-                <div
-                  className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 mt-0.5"
-                  style={{ backgroundColor: ACCENT_TINT, color: ACCENT }}
-                >
-                  {i + 1}
-                </div>
-                <div className="flex-1 min-w-0 space-y-2">
-                  <input
-                    placeholder="0x… wallet address"
-                    value={r.address}
-                    onChange={(e) => updateRecipient(r.id, { address: e.target.value })}
-                    className={`w-full font-mono text-xs outline-none bg-transparent text-neutral-900 placeholder:text-neutral-400 rounded-md px-2 py-1.5 border ${
-                      addressInvalid ? "border-red-400 bg-red-50" : "border-transparent"
-                    }`}
-                  />
-                  {addressInvalid && (
-                    <div className="text-[11px] font-semibold text-red-600">
-                      Invalid address — must be 0x followed by 40 hex characters
+            {recipients.map((r, i) => {
+              const calc = amountFor(r);
+              const chainInfo = CHAINS[r.chain];
+              const trimmed = r.address.trim();
+              const addressInvalid = trimmed.length > 0 && !isAddress(trimmed);
+              const contactName = trimmed ? findContactName(contactsStore.items, trimmed) : null;
+              const alreadySaved = !!contactName;
+              return (
+                <div key={r.id} className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 mt-0.5"
+                      style={{ backgroundColor: ACCENT_TINT, color: ACCENT }}
+                    >
+                      {i + 1}
                     </div>
-                  )}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <ChainSelect
-                      value={r.chain}
-                      onChange={(c) => updateRecipient(r.id, { chain: c })}
-                    />
-                    <ChainBadge chain={chainInfo} />
+                    <div className="flex-1 min-w-0 space-y-2">
+                      {contactName && (
+                        <div className="text-sm font-semibold text-neutral-900">
+                          {contactName}
+                        </div>
+                      )}
+                      <div className="relative flex items-center gap-1.5">
+                        <input
+                          placeholder="0x… wallet address"
+                          value={r.address}
+                          onChange={(e) => updateRecipient(r.id, { address: e.target.value })}
+                          className={`flex-1 min-w-0 font-mono text-xs outline-none bg-transparent text-neutral-900 placeholder:text-neutral-400 rounded-md px-2 py-1.5 border ${
+                            addressInvalid ? "border-red-400 bg-red-50" : "border-transparent"
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPickerOpenFor((cur) => (cur === r.id ? null : r.id))
+                          }
+                          title="Pick from contacts"
+                          aria-label="Pick from contacts"
+                          className="p-1.5 rounded-md border border-neutral-200 text-neutral-500 hover:bg-neutral-50 shrink-0"
+                        >
+                          <BookIcon />
+                        </button>
+                        {isAddress(trimmed) && !alreadySaved && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const name = window.prompt("Save this address as… (name)");
+                              if (name && name.trim()) {
+                                contactsStore.add({
+                                  id: uid(),
+                                  name: name.trim(),
+                                  address: trimmed,
+                                });
+                              }
+                            }}
+                            title="Save to contacts"
+                            aria-label="Save to contacts"
+                            className="p-1.5 rounded-md border border-neutral-200 text-neutral-500 hover:bg-neutral-50 shrink-0"
+                          >
+                            <PlusIcon />
+                          </button>
+                        )}
+                        {pickerOpenFor === r.id && (
+                          <ContactPicker
+                            contacts={contactsStore.items}
+                            onPick={(c) => {
+                              updateRecipient(r.id, { address: c.address });
+                              setPickerOpenFor(null);
+                            }}
+                            onClose={() => setPickerOpenFor(null)}
+                          />
+                        )}
+                      </div>
+                      {addressInvalid && (
+                        <div className="text-[11px] font-semibold text-red-600">
+                          Invalid address — must be 0x followed by 40 hex characters
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <ChainSelect
+                          value={r.chain}
+                          onChange={(c) => updateRecipient(r.id, { chain: c })}
+                        />
+                        <ChainBadge chain={chainInfo} />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeRecipient(r.id)}
+                      className="text-neutral-300 hover:text-red-500 text-sm shrink-0"
+                      title="Remove"
+                      aria-label="Remove recipient"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-neutral-100">
+                    {mode === "custom" ? (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          inputMode="decimal"
+                          value={r.percent}
+                          onChange={(e) =>
+                            updateRecipient(r.id, { percent: e.target.value.replace(/[^\d.]/g, "") })
+                          }
+                          className="w-16 text-sm font-semibold outline-none bg-neutral-50 rounded-lg px-2.5 py-1 text-neutral-900"
+                        />
+                        <span className="text-xs text-neutral-500">%</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-neutral-500">Equal share</span>
+                    )}
+                    <span className="text-base font-bold tabular-nums" style={{ color: ACCENT }}>
+                      {calc.toFixed(2)} USDC
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+            {mode === "custom" && (
+              <div className="text-xs text-right px-1 text-neutral-500">
+                Total:{" "}
+                <span
+                  className={
+                    Math.round(percentTotal * 100) === 100 * 100
+                      ? "text-neutral-900 font-semibold"
+                      : "text-red-500 font-semibold"
+                  }
+                >
+                  {percentTotal}%
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Summary */}
+          {(() => {
+            const uniqueChains = new Set(validRecipients.map((r) => r.chain));
+            const isCrossChain =
+              uniqueChains.size > 1 || (uniqueChains.size === 1 && !uniqueChains.has("arc"));
+            return (
+              <div
+                className="rounded-2xl border p-4 text-sm space-y-2"
+                style={{ backgroundColor: ACCENT_TINT, borderColor: "#C7E9DC" }}
+              >
+                <Row label="Total" value={`${totalAmount.toFixed(2)} USDC`} accent />
+                <Row label="Recipients" value={String(validRecipients.length)} />
+                {mode === "equal" && validRecipients.length > 0 && (
+                  <Row label="Per wallet" value={`${equalShare.toFixed(2)} USDC`} />
+                )}
+                <div className="border-t my-1" style={{ borderColor: "#C7E9DC" }} />
+                <Row label="Est. gas" value="~0.01 USDC" />
+                <Row
+                  label="Network"
+                  value={
+                    isCrossChain
+                      ? `Cross-chain split · ${uniqueChains.size} chain${uniqueChains.size === 1 ? "" : "s"}`
+                      : "Arc Testnet"
+                  }
+                />
+              </div>
+            );
+          })()}
+
+          {error && (
+            <div className="rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm p-4">
+              {error}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={!canSend}
+              className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98] flex items-center justify-center gap-2 shadow-sm disabled:shadow-none"
+              style={{
+                backgroundColor: canSend ? ACCENT : "#D4D4D4",
+                color: canSend ? "white" : "#737373",
+                cursor: canSend ? "pointer" : "not-allowed",
+              }}
+            >
+              <SendIcon />
+              {sendStatus === "approving"
+                ? "Approving USDC…"
+                : sendStatus === "splitting"
+                  ? "Sending split…"
+                  : !isConnected
+                    ? "Connect wallet to send"
+                    : totalAmount <= 0
+                      ? "Enter an amount"
+                      : "Split & Send"}
+            </button>
+            <button
+              type="button"
+              onClick={saveAsTemplate}
+              disabled={!isConnected}
+              className="w-full rounded-2xl px-5 py-3 text-sm font-semibold border transition active:scale-[.98] disabled:opacity-50"
+              style={{ color: ACCENT, borderColor: "#C7E9DC", backgroundColor: "white" }}
+            >
+              Save as template
+            </button>
+          </div>
+        </>
+      )}
+
+      {tab === "history" && (
+        <HistoryPanel
+          history={historyStore.items}
+          contacts={contactsStore.items}
+          onDelete={historyStore.remove}
+          onRepeat={(h) =>
+            applyPrefill({
+              name: h.name,
+              mode: h.mode,
+              amount: (parseFloat(h.total) || 0).toString(),
+              recipients: h.recipients.map((r) => ({
+                address: r.address,
+                percent: (100 / Math.max(h.recipients.length, 1)).toString(),
+                chain: (r.chain as ChainKey) ?? "arc",
+              })),
+            })
+          }
+          connected={isConnected}
+        />
+      )}
+
+      {tab === "contacts" && (
+        <ContactsPanel
+          contacts={contactsStore.items}
+          onAdd={(name, addr) =>
+            contactsStore.add({ id: uid(), name, address: addr })
+          }
+          onDelete={contactsStore.remove}
+          templates={templatesStore.items}
+          onDeleteTemplate={templatesStore.remove}
+          onUseTemplate={(t) =>
+            applyPrefill({
+              name: t.name,
+              mode: t.mode,
+              recipients: t.recipients.map((r) => ({
+                address: r.address,
+                percent: r.percent,
+                chain: (r.chain as ChainKey) ?? "arc",
+              })),
+            })
+          }
+          connected={isConnected}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ---------------- History panel ---------------- */
+
+function HistoryPanel({
+  history,
+  contacts,
+  onDelete,
+  onRepeat,
+  connected,
+}: {
+  history: HistoryEntry[];
+  contacts: Contact[];
+  onDelete: (id: string) => void;
+  onRepeat: (h: HistoryEntry) => void;
+  connected: boolean;
+}) {
+  if (!connected) {
+    return (
+      <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-center text-sm text-neutral-500">
+        Connect your wallet to see split history.
+      </div>
+    );
+  }
+  if (history.length === 0) {
+    return (
+      <div className="rounded-2xl border border-neutral-200 bg-white p-8 text-center">
+        <div
+          className="mx-auto h-16 w-16 rounded-full flex items-center justify-center mb-3"
+          style={{ backgroundColor: ACCENT_TINT }}
+        >
+          <span className="text-2xl">🕐</span>
+        </div>
+        <div className="font-semibold text-neutral-900">No splits yet</div>
+        <div className="text-xs text-neutral-500 mt-1">
+          Completed splits will appear here.
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-3">
+      {history.map((h) => (
+        <div key={h.id} className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="font-bold text-neutral-900 truncate">{h.name}</div>
+              <div className="text-[11px] text-neutral-500 mt-0.5">{formatDate(h.timestamp)}</div>
+            </div>
+            <div className="text-right shrink-0">
+              <div className="text-base font-bold tabular-nums" style={{ color: ACCENT }}>
+                {Number(h.total).toFixed(2)} USDC
+              </div>
+              <div className="text-[11px] text-neutral-500">
+                {h.recipients.length} recipient{h.recipients.length === 1 ? "" : "s"}
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 space-y-1">
+            {h.recipients.map((r, i) => {
+              const name = findContactName(contacts, r.address);
+              return (
+                <div key={i} className="flex justify-between items-center text-xs">
+                  <span className="text-neutral-700 truncate">
+                    {name ?? (
+                      <span className="font-mono text-neutral-500">{truncate(r.address)}</span>
+                    )}
+                  </span>
+                  <span className="font-semibold tabular-nums" style={{ color: ACCENT }}>
+                    {Number(r.amount).toFixed(2)} USDC
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-3 pt-3 border-t border-neutral-100 flex flex-wrap items-center gap-2">
+            <a
+              href={arcscanTx(h.txHash)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border transition active:scale-[.98] hover:shadow-sm"
+              style={{ color: ACCENT, borderColor: "#C7E9DC" }}
+            >
+              View on ArcScan →
+            </a>
+            <button
+              type="button"
+              onClick={() => onRepeat(h)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl text-white transition active:scale-[.98]"
+              style={{ backgroundColor: ACCENT }}
+            >
+              Repeat this split
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(h.id)}
+              className="ml-auto text-neutral-400 hover:text-red-500 p-1.5 rounded-md"
+              title="Delete from history"
+              aria-label="Delete from history"
+            >
+              <TrashIcon />
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ---------------- Contacts + Templates panel ---------------- */
+
+function ContactsPanel({
+  contacts,
+  onAdd,
+  onDelete,
+  templates,
+  onDeleteTemplate,
+  onUseTemplate,
+  connected,
+}: {
+  contacts: Contact[];
+  onAdd: (name: string, address: string) => void;
+  onDelete: (id: string) => void;
+  templates: Template[];
+  onDeleteTemplate: (id: string) => void;
+  onUseTemplate: (t: Template) => void;
+  connected: boolean;
+}) {
+  const [name, setName] = useState("");
+  const [addr, setAddr] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+
+  if (!connected) {
+    return (
+      <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-center text-sm text-neutral-500">
+        Connect your wallet to manage contacts and templates.
+      </div>
+    );
+  }
+
+  function submit() {
+    setFormError(null);
+    if (!name.trim()) {
+      setFormError("Give this contact a name.");
+      return;
+    }
+    if (!isAddress(addr.trim())) {
+      setFormError("Enter a valid 0x wallet address.");
+      return;
+    }
+    onAdd(name.trim(), addr.trim());
+    setName("");
+    setAddr("");
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Contacts */}
+      <section className="space-y-3">
+        <h3 className="text-sm font-bold text-neutral-900 px-1">
+          👥 Contacts <span className="text-neutral-400 font-normal">({contacts.length})</span>
+        </h3>
+        <div className="rounded-2xl border border-neutral-200 bg-white p-4 space-y-2 shadow-sm">
+          <input
+            placeholder="Name (e.g. Mum)"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full text-sm font-semibold outline-none bg-neutral-50 rounded-lg px-3 py-2 text-neutral-900"
+          />
+          <input
+            placeholder="0x… wallet address"
+            value={addr}
+            onChange={(e) => setAddr(e.target.value)}
+            className="w-full font-mono text-xs outline-none bg-neutral-50 rounded-lg px-3 py-2 text-neutral-900"
+          />
+          {formError && (
+            <div className="text-[11px] font-semibold text-red-600">{formError}</div>
+          )}
+          <button
+            type="button"
+            onClick={submit}
+            className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition active:scale-[.98]"
+            style={{ backgroundColor: ACCENT }}
+          >
+            Add contact
+          </button>
+        </div>
+        {contacts.length === 0 ? (
+          <div className="text-xs text-neutral-500 text-center py-4">
+            No contacts yet.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {contacts.map((c) => (
+              <div
+                key={c.id}
+                className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 flex items-center justify-between gap-3 shadow-sm"
+              >
+                <div className="min-w-0">
+                  <div className="font-semibold text-sm text-neutral-900 truncate">{c.name}</div>
+                  <div className="font-mono text-[11px] text-neutral-500 truncate">
+                    {truncate(c.address)}
                   </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => removeRecipient(r.id)}
-                  className="text-neutral-300 hover:text-red-500 text-sm shrink-0"
-                  title="Remove"
-                  aria-label="Remove recipient"
+                  onClick={() => onDelete(c.id)}
+                  className="text-neutral-400 hover:text-red-500 p-1.5 rounded-md"
+                  title="Delete contact"
+                  aria-label="Delete contact"
                 >
-                  ✕
+                  <TrashIcon />
                 </button>
               </div>
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-neutral-100">
-                {mode === "custom" ? (
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      inputMode="decimal"
-                      value={r.percent}
-                      onChange={(e) =>
-                        updateRecipient(r.id, { percent: e.target.value.replace(/[^\d.]/g, "") })
-                      }
-                      className="w-16 text-sm font-semibold outline-none bg-neutral-50 rounded-lg px-2.5 py-1 text-neutral-900"
-                    />
-                    <span className="text-xs text-neutral-500">%</span>
-                  </div>
-                ) : (
-                  <span className="text-xs text-neutral-500">Equal share</span>
-                )}
-                <span className="text-base font-bold tabular-nums" style={{ color: ACCENT }}>
-                  {calc.toFixed(2)} USDC
-                </span>
-              </div>
-            </div>
-          );
-        })}
-        {mode === "custom" && (
-          <div className="text-xs text-right px-1 text-neutral-500">
-            Total:{" "}
-            <span
-              className={
-                Math.round(percentTotal * 100) === 100 * 100
-                  ? "text-neutral-900 font-semibold"
-                  : "text-red-500 font-semibold"
-              }
-            >
-              {percentTotal}%
-            </span>
+            ))}
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Summary */}
-      {(() => {
-        const uniqueChains = new Set(validRecipients.map((r) => r.chain));
-        const isCrossChain = uniqueChains.size > 1 || (uniqueChains.size === 1 && !uniqueChains.has("arc"));
-        return (
-          <div
-            className="rounded-2xl border p-4 text-sm space-y-2"
-            style={{ backgroundColor: ACCENT_TINT, borderColor: "#C7E9DC" }}
-          >
-            <Row label="Total" value={`${totalAmount.toFixed(2)} USDC`} accent />
-            <Row label="Recipients" value={String(validRecipients.length)} />
-            {mode === "equal" && validRecipients.length > 0 && (
-              <Row label="Per wallet" value={`${equalShare.toFixed(2)} USDC`} />
-            )}
-            <div className="border-t my-1" style={{ borderColor: "#C7E9DC" }} />
-            <Row label="Est. gas" value="~0.01 USDC" />
-            <Row
-              label="Network"
-              value={
-                isCrossChain
-                  ? `Cross-chain split · ${uniqueChains.size} chain${uniqueChains.size === 1 ? "" : "s"}`
-                  : "Arc Testnet"
-              }
-            />
-            {isCrossChain && (
-              <div className="text-xs text-neutral-600 pt-1">
-                🌉 Non-Arc recipients are bridged via Circle CCTP.
-              </div>
-            )}
+      {/* Templates */}
+      <section className="space-y-3">
+        <h3 className="text-sm font-bold text-neutral-900 px-1">
+          📋 Templates <span className="text-neutral-400 font-normal">({templates.length})</span>
+        </h3>
+        {templates.length === 0 ? (
+          <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-center text-xs text-neutral-500">
+            No templates yet. Save a split as a template from the New Split tab.
           </div>
-        );
-      })()}
-
-      {error && (
-        <div className="rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm p-4">
-          {error}
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={handleSend}
-        disabled={!canSend}
-        className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98] flex items-center justify-center gap-2 shadow-sm disabled:shadow-none"
-        style={{
-          backgroundColor: canSend ? ACCENT : "#D4D4D4",
-          color: canSend ? "white" : "#737373",
-          cursor: canSend ? "pointer" : "not-allowed",
-        }}
-      >
-        <SendIcon />
-        {sendStatus === "approving"
-          ? "Approving USDC…"
-          : sendStatus === "splitting"
-            ? "Sending split…"
-            : !isConnected
-              ? "Connect wallet to send"
-              : totalAmount <= 0
-                ? "Enter an amount"
-                : "Split & Send"}
-      </button>
+        ) : (
+          <div className="space-y-2">
+            {templates.map((t) => (
+              <div
+                key={t.id}
+                className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-bold text-neutral-900 truncate">{t.name}</div>
+                    <div className="text-[11px] text-neutral-500 mt-0.5">
+                      {t.recipients.length} recipient{t.recipients.length === 1 ? "" : "s"} ·{" "}
+                      {t.mode === "equal" ? "Equal split" : "Custom %"}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteTemplate(t.id)}
+                    className="text-neutral-400 hover:text-red-500 p-1.5 rounded-md shrink-0"
+                    title="Delete template"
+                    aria-label="Delete template"
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onUseTemplate(t)}
+                  className="mt-3 w-full rounded-xl px-4 py-2 text-sm font-semibold text-white transition active:scale-[.98]"
+                  style={{ backgroundColor: ACCENT }}
+                >
+                  Use template
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
+
+/* ---------------- ---------------- */
 
 function Row({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
