@@ -72,14 +72,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "SplitArc — Split USDC to anyone, instantly" },
+      { name: "description", content: "Pay your team, split bills, distribute revenue — all in one onchain transaction. Powered by Arc and Circle." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "SplitArc — Split USDC to anyone, instantly" },
+      { property: "og:description", content: "Pay your team, split bills, distribute revenue — all in one onchain transaction. Powered by Arc and Circle." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "SplitArc — Split USDC to anyone, instantly" },
+      { name: "twitter:description", content: "Pay your team, split bills, distribute revenue — all in one onchain transaction. Powered by Arc and Circle." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/xGgFXOJhbzVpF4rwXUeGvJODmyI2/social-images/social-1785742384909-social-image.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/xGgFXOJhbzVpF4rwXUeGvJODmyI2/social-images/social-1785742384909-social-image.webp" },
     ],
     links: [
       {
