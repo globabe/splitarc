@@ -1291,7 +1291,6 @@ function Row({ label, value, accent }: { label: string; value: string; accent?: 
 }
 
 export default function SplitArcApp() {
-  const [mounted, setMounted] = useState(false);
   const { ready, authenticated, user, logout } = usePrivy();
   const { login } = useLogin();
   const { wallets, ready: walletsReady } = useWallets();
@@ -1304,24 +1303,11 @@ export default function SplitArcApp() {
   const fallbackName = identityName.includes("@") ? identityName.split("@")[0] : identityName;
   const displayName = customName || fallbackName;
   useEffect(() => {
-    const launchedFromLanding = window.sessionStorage.getItem("splitarc:launched") === "1";
-    const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
-
-    if (!launchedFromLanding || navigation?.type === "reload") {
-      window.location.replace("/");
-      return;
-    }
-
-    window.sessionStorage.removeItem("splitarc:launched");
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
     if (!user?.id) return;
     setCustomName(window.localStorage.getItem(`splitarc:${user.id}:display-name`) ?? "");
   }, [user?.id]);
 
-  if (!mounted || !ready) {
+  if (!ready) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: BG }}>
         <div className="text-neutral-400 text-sm">Loading…</div>
