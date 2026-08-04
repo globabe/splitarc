@@ -11,6 +11,10 @@ export const Route = createFileRoute("/")({
         content:
           "Pay your team, split bills, distribute revenue — all in one onchain transaction. Powered by Arc and Circle.",
       },
+      { property: "og:title", content: "SplitArc — Split USDC to anyone, instantly" },
+      { property: "og:description", content: "Pay your team, split bills, distribute revenue — all in one onchain transaction. Powered by Arc and Circle." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
 });

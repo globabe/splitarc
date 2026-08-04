@@ -61,6 +61,18 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+.dark .splitarc-app .bg-white { background-color: oklch(0.18 0 0); }
+.dark .splitarc-app .bg-neutral-50,
+.dark .splitarc-app .bg-neutral-100 { background-color: oklch(0.23 0 0); }
+.dark .splitarc-app .text-neutral-900,
+.dark .splitarc-app .text-neutral-800,
+.dark .splitarc-app .text-neutral-700,
+.dark .splitarc-app .text-neutral-600 { color: oklch(0.94 0 0); }
+.dark .splitarc-app .text-neutral-500,
+.dark .splitarc-app .text-neutral-400 { color: oklch(0.68 0 0); }
+.dark .splitarc-app .border-neutral-100,
+.dark .splitarc-app .border-neutral-200 { border-color: oklch(0.32 0 0); }
+
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);

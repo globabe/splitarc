@@ -11,6 +11,10 @@ export const Route = createFileRoute("/app")({
         content:
           "Split a USDC payment across multiple wallets in one go on Arc Testnet.",
       },
+      { property: "og:title", content: "SplitArc — USDC split payments on Arc Testnet" },
+      { property: "og:description", content: "Split a USDC payment across multiple wallets in one go on Arc Testnet." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
 });

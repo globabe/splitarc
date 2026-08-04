@@ -1,18 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  WagmiProvider,
-  useAccount,
-  useReadContract,
-  useConnect,
-  useDisconnect,
-  useSwitchChain,
-  useChainId,
-  useWriteContract,
-  usePublicClient,
-} from "wagmi";
-import { erc20Abi, formatUnits, parseUnits, isAddress } from "viem";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { getWagmiConfig } from "@/lib/wagmi";
+import { useLogin, usePrivy, useWallets } from "@privy-io/react-auth";
+import { createPublicClient, createWalletClient, custom, erc20Abi, formatUnits, http, parseUnits, isAddress } from "viem";
+import { useAppTheme } from "@/components/PrivyAppProvider";
 import {
   ARC_TESTNET_ID,
   USDC_ADDRESS,
@@ -134,6 +123,18 @@ function TrashIcon() {
   );
 }
 
+function SunIcon() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>;
+}
+
+function MoonIcon() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+}
+
+function ProfileIcon() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2"/><path d="M4 21a8 8 0 0 1 16 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>;
+}
+
 /* ---------------- Chain UI ---------------- */
 
 function ChainBadge({ chain }: { chain: ChainInfo }) {
@@ -185,7 +186,7 @@ function ChainSelect({ value, onChange }: { value: ChainKey; onChange: (c: Chain
 
 /* ---------------- Header + Wallet ---------------- */
 
-function Header({ children }: { children?: React.ReactNode }) {
+function Header({ children, actions }: { children?: React.ReactNode; actions?: React.ReactNode }) {
   return (
     <div className="mb-6">
       <div className="flex items-center justify-between mb-4">
@@ -196,52 +197,30 @@ function Header({ children }: { children?: React.ReactNode }) {
             <div className="text-xs text-neutral-500">USDC split payments</div>
           </div>
         </a>
-        <span
-          className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
-          style={{ backgroundColor: ACCENT_TINT, color: ACCENT }}
-        >
-          Arc Testnet
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ backgroundColor: ACCENT_TINT, color: ACCENT }}>Arc Testnet</span>
+          {actions}
+        </div>
       </div>
       {children}
     </div>
   );
 }
 
-function WalletBar() {
-  const { address, isConnected } = useAccount();
-  const chainId = useChainId();
-  const { connect, connectors, isPending } = useConnect();
-  const { disconnect } = useDisconnect();
-  const { switchChain } = useSwitchChain();
-  const onWrongChain = isConnected && chainId !== ARC_TESTNET_ID;
-
-  const { data: balanceRaw } = useReadContract({
-    address: USDC_ADDRESS,
-    abi: erc20Abi,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
-    chainId: ARC_TESTNET_ID,
-    query: { enabled: !!address && !onWrongChain, refetchInterval: 10_000 },
-  });
-  const balance =
-    typeof balanceRaw === "bigint" ? formatUnits(balanceRaw, USDC_DECIMALS) : undefined;
-
-  const injectedConnector = connectors.find((c) => c.type === "injected") ?? connectors[0];
-
-  if (!isConnected) {
-    return (
-      <button
-        type="button"
-        onClick={() => injectedConnector && connect({ connector: injectedConnector })}
-        disabled={isPending || !injectedConnector}
-        className="w-full rounded-2xl px-5 py-3.5 font-semibold text-white transition active:scale-[.98] disabled:opacity-60 shadow-sm"
-        style={{ backgroundColor: ACCENT }}
-      >
-        {isPending ? "Connecting…" : "Connect Wallet"}
-      </button>
-    );
-  }
+function WalletBar({ address, wallet, displayName }: { address?: string; wallet: ReturnType<typeof useWallets>["wallets"][number] | undefined; displayName: string }) {
+  const isConnected = !!address;
+  const chainId = wallet?.chainId;
+  const onWrongChain = isConnected && chainId !== `eip155:${ARC_TESTNET_ID}`;
+  const [balance, setBalance] = useState("0");
+  useEffect(() => {
+    if (!address || onWrongChain) return;
+    const client = createPublicClient({ chain: arcTestnet, transport: http() });
+    let active = true;
+    const load = () => client.readContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).then((raw) => active && setBalance(formatUnits(raw, USDC_DECIMALS))).catch(() => undefined);
+    load();
+    const timer = window.setInterval(load, 10_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [address, onWrongChain]);
 
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-3.5 flex items-center justify-between shadow-sm">
@@ -253,9 +232,7 @@ function WalletBar() {
           <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: ACCENT }} />
         </div>
         <div className="flex flex-col min-w-0">
-          <span className="text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">
-            Wallet
-          </span>
+          <span className="text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">Welcome back, {displayName}</span>
           <span className="font-mono text-sm text-neutral-900 truncate">{truncate(address)}</span>
         </div>
       </div>
@@ -263,7 +240,7 @@ function WalletBar() {
         {onWrongChain ? (
           <button
             type="button"
-            onClick={() => switchChain({ chainId: ARC_TESTNET_ID })}
+            onClick={() => wallet?.switchChain(ARC_TESTNET_ID)}
             className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-100 text-amber-800"
           >
             Switch to Arc
@@ -275,7 +252,7 @@ function WalletBar() {
                 Balance
               </div>
               <div className="text-sm font-bold" style={{ color: ACCENT }}>
-                {balance ? Number(balance).toFixed(2) : "0.00"} USDC
+                 {Number(balance).toFixed(2)} USDC
               </div>
             </div>
             <a
@@ -290,15 +267,6 @@ function WalletBar() {
             </a>
           </div>
         )}
-        <button
-          type="button"
-          onClick={() => disconnect()}
-          className="text-neutral-300 hover:text-neutral-600 text-base leading-none px-1"
-          title="Disconnect"
-          aria-label="Disconnect wallet"
-        >
-          ✕
-        </button>
       </div>
     </div>
   );
@@ -394,11 +362,10 @@ type Prefill = {
   recipients: PrefillRecipient[];
 };
 
-function App() {
-  const { address, isConnected } = useAccount();
-  const chainId = useChainId();
-  const publicClient = usePublicClient({ chainId: ARC_TESTNET_ID });
-  const { writeContractAsync } = useWriteContract();
+function App({ address, wallet, displayName }: { address?: string; wallet: ReturnType<typeof useWallets>["wallets"][number] | undefined; displayName: string }) {
+  const isConnected = !!address && !!wallet;
+  const chainId = wallet?.chainId;
+  const publicClient = useMemo(() => createPublicClient({ chain: arcTestnet, transport: http() }), []);
 
   const contactsStore = useContacts(address);
   const historyStore = useHistory(address);
@@ -406,16 +373,15 @@ function App() {
 
   const [tab, setTab] = useState<Tab>("new");
 
-  const { data: balanceRaw } = useReadContract({
-    address: USDC_ADDRESS,
-    abi: erc20Abi,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
-    chainId: ARC_TESTNET_ID,
-    query: { enabled: !!address && chainId === ARC_TESTNET_ID, refetchInterval: 10_000 },
-  });
-  const balanceStr =
-    typeof balanceRaw === "bigint" ? formatUnits(balanceRaw, USDC_DECIMALS) : undefined;
+  const [balanceStr, setBalanceStr] = useState<string>();
+  useEffect(() => {
+    if (!address || chainId !== `eip155:${ARC_TESTNET_ID}`) return;
+    let active = true;
+    const load = () => publicClient.readContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).then((raw) => active && setBalanceStr(formatUnits(raw, USDC_DECIMALS))).catch(() => undefined);
+    load();
+    const timer = window.setInterval(load, 10_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [address, chainId, publicClient]);
 
   const [splitName, setSplitName] = useState("");
   const [amount, setAmount] = useState("");
@@ -504,7 +470,7 @@ function App() {
       setError("Please connect your wallet first.");
       return;
     }
-    if (chainId !== ARC_TESTNET_ID) {
+    if (chainId !== `eip155:${ARC_TESTNET_ID}`) {
       setError("Switch your wallet to Arc Testnet to continue.");
       return;
     }
@@ -542,23 +508,28 @@ function App() {
     const addresses = validRecipients.map((r) => r.address.trim() as `0x${string}`);
 
     try {
+      const provider = await wallet.getEthereumProvider();
+      const walletClient = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
+      const account = address as `0x${string}`;
       setSendStatus("approving");
-      const approveHash = await writeContractAsync({
+      const approveHash = await walletClient.writeContract({
+        account,
         address: USDC_ADDRESS,
         abi: erc20Abi,
         functionName: "approve",
         args: [SPLITARC_ADDRESS, totalWei],
-        chainId: ARC_TESTNET_ID,
+        chain: arcTestnet,
       });
       await publicClient.waitForTransactionReceipt({ hash: approveHash });
 
       setSendStatus("splitting");
-      const splitHash = await writeContractAsync({
+      const splitHash = await walletClient.writeContract({
+        account,
         address: SPLITARC_ADDRESS,
         abi: SPLITARC_ABI,
         functionName: "split",
         args: [splitName.trim(), addresses, perRecipientWei],
-        chainId: ARC_TESTNET_ID,
+        chain: arcTestnet,
       });
       await publicClient.waitForTransactionReceipt({ hash: splitHash });
 
@@ -694,7 +665,7 @@ function App() {
 
   return (
     <div className="space-y-5">
-      <WalletBar />
+       <WalletBar address={address} wallet={wallet} displayName={displayName} />
       <TabBar tab={tab} setTab={setTab} />
 
       {tab === "new" && (
@@ -1320,26 +1291,23 @@ function Row({ label, value, accent }: { label: string; value: string; accent?: 
 }
 
 export default function SplitArcApp() {
-  const [mounted, setMounted] = useState(false);
+  const { ready, authenticated, user, logout } = usePrivy();
+  const { login } = useLogin();
+  const { wallets, ready: walletsReady } = useWallets();
+  const { theme, toggleTheme } = useAppTheme();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [customName, setCustomName] = useState("");
+  const wallet = wallets[0];
+  const address = wallet?.address;
+  const identityName = user?.google?.name || user?.google?.email || user?.email?.address || "there";
+  const fallbackName = identityName.includes("@") ? identityName.split("@")[0] : identityName;
+  const displayName = customName || fallbackName;
   useEffect(() => {
-    const launchedFromLanding = window.sessionStorage.getItem("splitarc:launched") === "1";
-    const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    if (!user?.id) return;
+    setCustomName(window.localStorage.getItem(`splitarc:${user.id}:display-name`) ?? "");
+  }, [user?.id]);
 
-    if (!launchedFromLanding || navigation?.type === "reload") {
-      window.location.replace("/");
-      return;
-    }
-
-    window.sessionStorage.removeItem("splitarc:launched");
-    setMounted(true);
-  }, []);
-
-  const [{ config, queryClient }] = useState(() => ({
-    config: getWagmiConfig(),
-    queryClient: new QueryClient(),
-  }));
-
-  if (!mounted) {
+  if (!ready) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: BG }}>
         <div className="text-neutral-400 text-sm">Loading…</div>
@@ -1347,19 +1315,34 @@ export default function SplitArcApp() {
     );
   }
 
+  if (!authenticated) {
+    return (
+      <div className={theme === "dark" ? "dark" : ""}>
+        <div className="min-h-screen flex items-center justify-center px-5 bg-[#F5F5F5] dark:bg-[#0A0A0A]">
+          <div className="w-full max-w-sm text-center">
+            <div className="mx-auto w-fit"><Logo /></div>
+            <h1 className="mt-6 text-3xl font-bold text-neutral-900 dark:text-white">Welcome to SplitArc</h1>
+            <p className="mt-2 text-neutral-500 dark:text-neutral-400">Split USDC to anyone, instantly</p>
+            <button type="button" onClick={login} className="mt-8 w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98]" style={{ backgroundColor: ACCENT }}>Sign in</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!walletsReady || !wallet) return <div className="min-h-screen flex items-center justify-center bg-neutral-100 text-neutral-500">Preparing your wallet…</div>;
+
   return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <div className="min-h-screen px-5 py-8 flex justify-center" style={{ backgroundColor: BG }}>
+    <div className={theme === "dark" ? "dark" : ""}>
+        <div className="splitarc-app min-h-screen px-5 py-8 flex justify-center bg-[#F5F5F5] dark:bg-[#0A0A0A]">
           <div className="w-full max-w-[480px]">
-            <Header />
-            <App />
+            <Header actions={<><button type="button" onClick={toggleTheme} className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" aria-label="Toggle color theme">{theme === "light" ? <MoonIcon /> : <SunIcon />}</button><div className="relative"><button type="button" onClick={() => setProfileOpen((open) => !open)} className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" aria-label="Open profile"><ProfileIcon /></button>{profileOpen && <div className="absolute right-0 top-10 z-30 w-72 rounded-2xl border border-neutral-200 bg-white p-4 shadow-xl dark:border-neutral-700 dark:bg-neutral-900"><div className="font-semibold text-neutral-900 dark:text-white truncate">{customName || identityName}</div><div className="mt-3 flex items-center justify-between rounded-lg bg-neutral-50 px-3 py-2 dark:bg-neutral-800"><span className="font-mono text-xs text-neutral-600 dark:text-neutral-300">{truncate(address)}</span><button type="button" onClick={() => navigator.clipboard.writeText(address)} className="text-xs font-semibold" style={{ color: ACCENT }}>Copy</button></div><button type="button" onClick={() => { const next = window.prompt("Enter a display name", customName || fallbackName); if (next === null || !user?.id) return; const clean = next.trim(); setCustomName(clean); if (clean) window.localStorage.setItem(`splitarc:${user.id}:display-name`, clean); else window.localStorage.removeItem(`splitarc:${user.id}:display-name`); }} className="mt-3 w-full rounded-lg border border-neutral-200 px-3 py-2 text-left text-sm font-medium text-neutral-700 dark:border-neutral-700 dark:text-neutral-200">Edit display name</button><button type="button" onClick={() => logout()} className="mt-2 w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-600 hover:bg-red-50">Logout</button></div>}</div></>} />
+            <App address={address} wallet={wallet} displayName={displayName} />
             <p className="mt-8 text-center text-xs text-neutral-400">
               Arc Testnet · Chain ID {arcTestnet.id}
             </p>
           </div>
         </div>
-      </QueryClientProvider>
-    </WagmiProvider>
+    </div>
   );
 }
