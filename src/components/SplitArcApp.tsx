@@ -1,18 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  WagmiProvider,
-  useAccount,
-  useReadContract,
-  useConnect,
-  useDisconnect,
-  useSwitchChain,
-  useChainId,
-  useWriteContract,
-  usePublicClient,
-} from "wagmi";
-import { erc20Abi, formatUnits, parseUnits, isAddress } from "viem";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { getWagmiConfig } from "@/lib/wagmi";
+import { useLogin, usePrivy, useWallets } from "@privy-io/react-auth";
+import { createPublicClient, createWalletClient, custom, erc20Abi, formatUnits, http, parseUnits, isAddress } from "viem";
+import { useAppTheme } from "@/components/PrivyAppProvider";
 import {
   ARC_TESTNET_ID,
   USDC_ADDRESS,
@@ -134,6 +123,18 @@ function TrashIcon() {
   );
 }
 
+function SunIcon() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>;
+}
+
+function MoonIcon() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+}
+
+function ProfileIcon() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2"/><path d="M4 21a8 8 0 0 1 16 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>;
+}
+
 /* ---------------- Chain UI ---------------- */
 
 function ChainBadge({ chain }: { chain: ChainInfo }) {
@@ -185,7 +186,7 @@ function ChainSelect({ value, onChange }: { value: ChainKey; onChange: (c: Chain
 
 /* ---------------- Header + Wallet ---------------- */
 
-function Header({ children }: { children?: React.ReactNode }) {
+function Header({ children, actions }: { children?: React.ReactNode; actions?: React.ReactNode }) {
   return (
     <div className="mb-6">
       <div className="flex items-center justify-between mb-4">
@@ -196,52 +197,30 @@ function Header({ children }: { children?: React.ReactNode }) {
             <div className="text-xs text-neutral-500">USDC split payments</div>
           </div>
         </a>
-        <span
-          className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
-          style={{ backgroundColor: ACCENT_TINT, color: ACCENT }}
-        >
-          Arc Testnet
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ backgroundColor: ACCENT_TINT, color: ACCENT }}>Arc Testnet</span>
+          {actions}
+        </div>
       </div>
       {children}
     </div>
   );
 }
 
-function WalletBar() {
-  const { address, isConnected } = useAccount();
-  const chainId = useChainId();
-  const { connect, connectors, isPending } = useConnect();
-  const { disconnect } = useDisconnect();
-  const { switchChain } = useSwitchChain();
+function WalletBar({ address, wallet, displayName }: { address?: string; wallet: ReturnType<typeof useWallets>["wallets"][number] | undefined; displayName: string }) {
+  const isConnected = !!address;
+  const chainId = wallet?.chainId;
   const onWrongChain = isConnected && chainId !== ARC_TESTNET_ID;
-
-  const { data: balanceRaw } = useReadContract({
-    address: USDC_ADDRESS,
-    abi: erc20Abi,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
-    chainId: ARC_TESTNET_ID,
-    query: { enabled: !!address && !onWrongChain, refetchInterval: 10_000 },
-  });
-  const balance =
-    typeof balanceRaw === "bigint" ? formatUnits(balanceRaw, USDC_DECIMALS) : undefined;
-
-  const injectedConnector = connectors.find((c) => c.type === "injected") ?? connectors[0];
-
-  if (!isConnected) {
-    return (
-      <button
-        type="button"
-        onClick={() => injectedConnector && connect({ connector: injectedConnector })}
-        disabled={isPending || !injectedConnector}
-        className="w-full rounded-2xl px-5 py-3.5 font-semibold text-white transition active:scale-[.98] disabled:opacity-60 shadow-sm"
-        style={{ backgroundColor: ACCENT }}
-      >
-        {isPending ? "Connecting…" : "Connect Wallet"}
-      </button>
-    );
-  }
+  const [balance, setBalance] = useState("0");
+  useEffect(() => {
+    if (!address || onWrongChain) return;
+    const client = createPublicClient({ chain: arcTestnet, transport: http() });
+    let active = true;
+    const load = () => client.readContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).then((raw) => active && setBalance(formatUnits(raw, USDC_DECIMALS))).catch(() => undefined);
+    load();
+    const timer = window.setInterval(load, 10_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [address, onWrongChain]);
 
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-3.5 flex items-center justify-between shadow-sm">
@@ -253,9 +232,7 @@ function WalletBar() {
           <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: ACCENT }} />
         </div>
         <div className="flex flex-col min-w-0">
-          <span className="text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">
-            Wallet
-          </span>
+          <span className="text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">Welcome back, {displayName}</span>
           <span className="font-mono text-sm text-neutral-900 truncate">{truncate(address)}</span>
         </div>
       </div>
@@ -263,7 +240,7 @@ function WalletBar() {
         {onWrongChain ? (
           <button
             type="button"
-            onClick={() => switchChain({ chainId: ARC_TESTNET_ID })}
+            onClick={() => wallet?.switchChain(ARC_TESTNET_ID)}
             className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-100 text-amber-800"
           >
             Switch to Arc
@@ -275,7 +252,7 @@ function WalletBar() {
                 Balance
               </div>
               <div className="text-sm font-bold" style={{ color: ACCENT }}>
-                {balance ? Number(balance).toFixed(2) : "0.00"} USDC
+                 {Number(balance).toFixed(2)} USDC
               </div>
             </div>
             <a
@@ -290,15 +267,6 @@ function WalletBar() {
             </a>
           </div>
         )}
-        <button
-          type="button"
-          onClick={() => disconnect()}
-          className="text-neutral-300 hover:text-neutral-600 text-base leading-none px-1"
-          title="Disconnect"
-          aria-label="Disconnect wallet"
-        >
-          ✕
-        </button>
       </div>
     </div>
   );
