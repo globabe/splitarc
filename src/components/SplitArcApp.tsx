@@ -210,7 +210,7 @@ function Header({ children, actions }: { children?: React.ReactNode; actions?: R
 function WalletBar({ address, wallet, displayName }: { address?: string; wallet: ReturnType<typeof useWallets>["wallets"][number] | undefined; displayName: string }) {
   const isConnected = !!address;
   const chainId = wallet?.chainId;
-  const onWrongChain = isConnected && chainId !== ARC_TESTNET_ID;
+  const onWrongChain = isConnected && chainId !== `eip155:${ARC_TESTNET_ID}`;
   const [balance, setBalance] = useState("0");
   useEffect(() => {
     if (!address || onWrongChain) return;
@@ -518,7 +518,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
         abi: erc20Abi,
         functionName: "approve",
         args: [SPLITARC_ADDRESS, totalWei],
-        chainId: ARC_TESTNET_ID,
+        chain: arcTestnet,
       });
       await publicClient.waitForTransactionReceipt({ hash: approveHash });
 
@@ -529,7 +529,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
         abi: SPLITARC_ABI,
         functionName: "split",
         args: [splitName.trim(), addresses, perRecipientWei],
-        chainId: ARC_TESTNET_ID,
+        chain: arcTestnet,
       });
       await publicClient.waitForTransactionReceipt({ hash: splitHash });
 
