@@ -194,7 +194,7 @@ function Header({ children, actions }: { children?: React.ReactNode; actions?: R
   );
 }
 
-function WalletBar({ address, wallet, displayName }: { address?: string; wallet: ReturnType<typeof useWallets>["wallets"][number] | undefined; displayName: string }) {
+function WalletBar({ address, wallet, displayName, token }: { address?: string; wallet: ReturnType<typeof useWallets>["wallets"][number] | undefined; displayName: string; token: TokenInfo }) {
   const isConnected = !!address;
   const chainId = wallet?.chainId;
   const onWrongChain = isConnected && chainId !== `eip155:${ARC_TESTNET_ID}`;
@@ -203,11 +203,12 @@ function WalletBar({ address, wallet, displayName }: { address?: string; wallet:
     if (!address || onWrongChain) return;
     const client = createPublicClient({ chain: arcTestnet, transport: http() });
     let active = true;
-    const load = () => client.readContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).then((raw) => active && setBalance(formatUnits(raw, USDC_DECIMALS))).catch(() => undefined);
+    const load = () => client.readContract({ address: token.address, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).then((raw) => active && setBalance(formatUnits(raw, token.decimals))).catch(() => undefined);
+    setBalance("0");
     load();
     const timer = window.setInterval(load, 10_000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [address, onWrongChain]);
+  }, [address, onWrongChain, token.address, token.decimals]);
 
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-3.5 flex items-center justify-between shadow-sm">
@@ -239,18 +240,18 @@ function WalletBar({ address, wallet, displayName }: { address?: string; wallet:
                 Balance
               </div>
               <div className="text-sm font-bold" style={{ color: ACCENT }}>
-                 {Number(balance).toFixed(2)} USDC
+                 {Number(balance).toFixed(2)} {token.symbol}
               </div>
             </div>
             <a
-              href="https://faucet.circle.com"
+              href={token.faucet ?? "https://faucet.circle.com"}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition active:scale-[.98] hover:bg-neutral-50"
               style={{ color: ACCENT, borderColor: "#C7E9DC" }}
             >
               <DropletIcon />
-              Get test USDC
+              Get test {token.symbol}
             </a>
           </div>
         )}
@@ -341,7 +342,7 @@ function ContactPicker({
 
 /* ---------------- Main App ---------------- */
 
-type PrefillRecipient = { address: string; percent: string; chain: ChainKey };
+type PrefillRecipient = { address: string; percent: string };
 type Prefill = {
   name: string;
   mode: Mode;
@@ -359,23 +360,26 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
   const templatesStore = useTemplates(address);
 
   const [tab, setTab] = useState<Tab>("new");
+  const [tokenKey, setTokenKey] = useState<TokenKey>("usdc");
+  const token = TOKENS[tokenKey];
 
   const [balanceStr, setBalanceStr] = useState<string>();
   useEffect(() => {
     if (!address || chainId !== `eip155:${ARC_TESTNET_ID}`) return;
     let active = true;
-    const load = () => publicClient.readContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).then((raw) => active && setBalanceStr(formatUnits(raw, USDC_DECIMALS))).catch(() => undefined);
+    const load = () => publicClient.readContract({ address: token.address, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).then((raw) => active && setBalanceStr(formatUnits(raw, token.decimals))).catch(() => undefined);
+    setBalanceStr(undefined);
     load();
     const timer = window.setInterval(load, 10_000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [address, chainId, publicClient]);
+  }, [address, chainId, publicClient, token.address, token.decimals]);
 
   const [splitName, setSplitName] = useState("");
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState<Mode>("equal");
   const [recipients, setRecipients] = useState<Recipient[]>([
-    { id: uid(), address: "", percent: "50", chain: "arc" },
-    { id: uid(), address: "", percent: "50", chain: "arc" },
+    { id: uid(), address: "", percent: "50" },
+    { id: uid(), address: "", percent: "50" },
   ]);
   const [sendStatus, setSendStatus] = useState<"idle" | "approving" | "splitting">("idle");
   const [results, setResults] = useState<SendResult[] | null>(null);
