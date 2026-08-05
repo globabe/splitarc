@@ -571,27 +571,17 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
           </div>
           <h2 className="mt-6 text-3xl font-bold text-neutral-900">Split Complete!</h2>
           <p className="text-sm text-neutral-500 mt-2">
-            Sent USDC to {results.length} recipient{results.length === 1 ? "" : "s"}
+            Sent {token.symbol} to {results.length} recipient{results.length === 1 ? "" : "s"}
           </p>
         </div>
         <div className="space-y-3">
           {results.map((r, i) => {
-            const chainInfo = CHAINS[r.chain];
             const contactName = findContactName(contactsStore.items, r.address);
             return (
               <div key={r.address + i} className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 text-white overflow-hidden"
-                      style={{ backgroundColor: chainInfo.color }}
-                    >
-                      {chainInfo.logo ? (
-                        <img src={chainInfo.logo} alt="" className="h-8 w-8 object-cover" />
-                      ) : (
-                        chainInfo.icon
-                      )}
-                    </div>
+                    <TokenIcon token={token} size={32} />
                     <div className="flex flex-col min-w-0">
                       <span className="text-sm text-neutral-900 truncate font-semibold">
                         {contactName ?? truncate(r.address)}
@@ -602,7 +592,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
                     </div>
                   </div>
                   <span className="font-bold text-base shrink-0" style={{ color: ACCENT }}>
-                    {r.amount} USDC
+                    {r.amount} {token.symbol}
                   </span>
                 </div>
               </div>
@@ -655,7 +645,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
 
   return (
     <div className="space-y-5">
-       <WalletBar address={address} wallet={wallet} displayName={displayName} />
+       <WalletBar address={address} wallet={wallet} displayName={displayName} token={token} />
       <TabBar tab={tab} setTab={setTab} />
 
       {tab === "new" && (
@@ -685,14 +675,14 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
                   placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))}
-                  className="w-[60%] text-5xl font-bold text-center outline-none bg-transparent placeholder:text-neutral-300 tabular-nums"
+                  className="w-[55%] text-5xl font-bold text-center outline-none bg-transparent placeholder:text-neutral-300 tabular-nums"
                   style={{ color: amount ? "#0a0a0a" : undefined }}
                 />
-                <span className="text-lg font-bold text-neutral-400">USDC</span>
+                <TokenSelect value={tokenKey} onChange={setTokenKey} />
               </div>
               <div className="mt-2 text-xs text-neutral-500">
                 {isConnected
-                  ? `Available: ${balanceStr ? Number(balanceStr).toFixed(2) : "0.00"} USDC`
+                  ? `Available: ${balanceStr ? Number(balanceStr).toFixed(2) : "0.00"} ${token.symbol}`
                   : "Connect wallet to see balance"}
               </div>
             </div>
@@ -734,7 +724,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
 
             {recipients.map((r, i) => {
               const calc = amountFor(r);
-              const chainInfo = CHAINS[r.chain];
+              const trimmed2 = r.address.trim();
               const trimmed = r.address.trim();
               const addressInvalid = trimmed.length > 0 && !isAddress(trimmed);
               const contactName = trimmed ? findContactName(contactsStore.items, trimmed) : null;
@@ -810,13 +800,6 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
                           Invalid address — must be 0x followed by 40 hex characters
                         </div>
                       )}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <ChainSelect
-                          value={r.chain}
-                          onChange={(c) => updateRecipient(r.id, { chain: c })}
-                        />
-                        <ChainBadge chain={chainInfo} />
-                      </div>
                     </div>
                     <button
                       type="button"
@@ -845,7 +828,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
                       <span className="text-xs text-neutral-500">Equal share</span>
                     )}
                     <span className="text-base font-bold tabular-nums" style={{ color: ACCENT }}>
-                      {calc.toFixed(2)} USDC
+                      {calc.toFixed(2)} {token.symbol}
                     </span>
                   </div>
                 </div>
@@ -868,33 +851,19 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
           </div>
 
           {/* Summary */}
-          {(() => {
-            const uniqueChains = new Set(validRecipients.map((r) => r.chain));
-            const isCrossChain =
-              uniqueChains.size > 1 || (uniqueChains.size === 1 && !uniqueChains.has("arc"));
-            return (
-              <div
-                className="rounded-2xl border p-4 text-sm space-y-2"
-                style={{ backgroundColor: ACCENT_TINT, borderColor: "#C7E9DC" }}
-              >
-                <Row label="Total" value={`${totalAmount.toFixed(2)} USDC`} accent />
-                <Row label="Recipients" value={String(validRecipients.length)} />
-                {mode === "equal" && validRecipients.length > 0 && (
-                  <Row label="Per wallet" value={`${equalShare.toFixed(2)} USDC`} />
-                )}
-                <div className="border-t my-1" style={{ borderColor: "#C7E9DC" }} />
-                <Row label="Est. gas" value="~0.01 USDC" />
-                <Row
-                  label="Network"
-                  value={
-                    isCrossChain
-                      ? `Cross-chain split · ${uniqueChains.size} chain${uniqueChains.size === 1 ? "" : "s"}`
-                      : "Arc Testnet"
-                  }
-                />
-              </div>
-            );
-          })()}
+          <div
+            className="rounded-2xl border p-4 text-sm space-y-2"
+            style={{ backgroundColor: ACCENT_TINT, borderColor: "#C7E9DC" }}
+          >
+            <Row label="Total" value={`${totalAmount.toFixed(2)} ${token.symbol}`} accent />
+            <Row label="Recipients" value={String(validRecipients.length)} />
+            {mode === "equal" && validRecipients.length > 0 && (
+              <Row label="Per wallet" value={`${equalShare.toFixed(2)} ${token.symbol}`} />
+            )}
+            <div className="border-t my-1" style={{ borderColor: "#C7E9DC" }} />
+            <Row label="Est. gas" value="~0.01 USDC" />
+            <Row label="Network" value="Arc Testnet" />
+          </div>
 
           {error && (
             <div className="rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm p-4">
