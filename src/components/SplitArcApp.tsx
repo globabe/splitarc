@@ -1290,6 +1290,19 @@ function Row({ label, value, accent }: { label: string; value: string; accent?: 
   );
 }
 
+function clearPrivySession() {
+  try {
+    Object.keys(window.localStorage)
+      .filter((key) => key.startsWith("privy:"))
+      .forEach((key) => window.localStorage.removeItem(key));
+    Object.keys(window.sessionStorage)
+      .filter((key) => key.startsWith("privy:"))
+      .forEach((key) => window.sessionStorage.removeItem(key));
+  } catch {
+    /* ignore */
+  }
+}
+
 export default function SplitArcApp() {
   const { ready, authenticated, user, logout } = usePrivy();
   const { login } = useLogin();
@@ -1297,6 +1310,7 @@ export default function SplitArcApp() {
   const { theme, toggleTheme } = useAppTheme();
   const [profileOpen, setProfileOpen] = useState(false);
   const [customName, setCustomName] = useState("");
+  const [walletTimedOut, setWalletTimedOut] = useState(false);
   const wallet = wallets[0];
   const address = wallet?.address;
   const identityName = user?.google?.name || user?.google?.email || user?.email?.address || "there";
@@ -1307,6 +1321,18 @@ export default function SplitArcApp() {
     setCustomName(window.localStorage.getItem(`splitarc:${user.id}:display-name`) ?? "");
   }, [user?.id]);
 
+  const preparingWallet = ready && authenticated && (!walletsReady || !wallet);
+
+  useEffect(() => {
+    if (!preparingWallet) return;
+    const timer = window.setTimeout(() => {
+      clearPrivySession();
+      setWalletTimedOut(true);
+      logout().catch(() => undefined);
+    }, 10000);
+    return () => window.clearTimeout(timer);
+  }, [preparingWallet, logout]);
+
   if (!ready) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: BG }}>
@@ -1315,7 +1341,7 @@ export default function SplitArcApp() {
     );
   }
 
-  if (!authenticated) {
+  if (!authenticated || walletTimedOut) {
     return (
       <div className={theme === "dark" ? "dark" : ""}>
         <div className="min-h-screen flex items-center justify-center px-5 bg-[#F5F5F5] dark:bg-[#0A0A0A]">
@@ -1323,14 +1349,38 @@ export default function SplitArcApp() {
             <div className="mx-auto w-fit"><Logo /></div>
             <h1 className="mt-6 text-3xl font-bold text-neutral-900 dark:text-white">Welcome to SplitArc</h1>
             <p className="mt-2 text-neutral-500 dark:text-neutral-400">Split USDC to anyone, instantly</p>
-            <button type="button" onClick={login} className="mt-8 w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98]" style={{ backgroundColor: ACCENT }}>Sign in</button>
+            {walletTimedOut && (
+              <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                Your previous session couldn't be restored, so we signed you out. Please sign in again.
+              </p>
+            )}
+            <div className="mt-8 space-y-3">
+              <button type="button" onClick={() => { setWalletTimedOut(false); login({ loginMethods: ["email"] }); }} className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98]" style={{ backgroundColor: ACCENT }}>Continue with email</button>
+              <button type="button" onClick={() => { setWalletTimedOut(false); login({ loginMethods: ["google"] }); }} className="w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 font-semibold text-neutral-900 transition active:scale-[.98] dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">Continue with Google</button>
+              <button type="button" onClick={() => { setWalletTimedOut(false); login({ loginMethods: ["wallet"] }); }} className="w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 font-semibold text-neutral-900 transition active:scale-[.98] dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">Connect Wallet</button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  if (!walletsReady || !wallet) return <div className="min-h-screen flex items-center justify-center bg-neutral-100 text-neutral-500">Preparing your wallet…</div>;
+  if (preparingWallet) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-neutral-100 text-neutral-500">
+        <div>Preparing your wallet…</div>
+        <button
+          type="button"
+          onClick={() => { clearPrivySession(); window.location.reload(); }}
+          className="text-sm font-semibold underline"
+          style={{ color: ACCENT }}
+        >
+          Having trouble? Click here to reset
+        </button>
+      </div>
+    );
+  }
+
 
   return (
     <div className={theme === "dark" ? "dark" : ""}>
