@@ -4,8 +4,6 @@ import { createPublicClient, createWalletClient, custom, erc20Abi, formatUnits, 
 import { useAppTheme } from "@/components/PrivyAppProvider";
 import {
   ARC_TESTNET_ID,
-  USDC_ADDRESS,
-  USDC_DECIMALS,
   SPLITARC_ADDRESS,
   SPLITARC_ABI,
   EXPLORER_URL,
@@ -724,7 +722,6 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
 
             {recipients.map((r, i) => {
               const calc = amountFor(r);
-              const trimmed2 = r.address.trim();
               const trimmed = r.address.trim();
               const addressInvalid = trimmed.length > 0 && !isAddress(trimmed);
               const contactName = trimmed ? findContactName(contactsStore.items, trimmed) : null;
@@ -1268,7 +1265,9 @@ export default function SplitArcApp() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [customName, setCustomName] = useState("");
   const [walletTimedOut, setWalletTimedOut] = useState(false);
-  const wallet = wallets[0];
+  const [skipWalletWait, setSkipWalletWait] = useState(false);
+  // External wallets (MetaMask, Rabby…) win — no need to wait for an embedded wallet.
+  const wallet = wallets.find((w) => w.walletClientType !== "privy") ?? wallets[0];
   const address = wallet?.address;
   const identityName = user?.google?.name || user?.google?.email || user?.email?.address || "there";
   const fallbackName = identityName.includes("@") ? identityName.split("@")[0] : identityName;
@@ -1278,17 +1277,15 @@ export default function SplitArcApp() {
     setCustomName(window.localStorage.getItem(`splitarc:${user.id}:display-name`) ?? "");
   }, [user?.id]);
 
-  const preparingWallet = ready && authenticated && (!walletsReady || !wallet);
+  const preparingWallet =
+    ready && authenticated && !skipWalletWait && (!walletsReady || !wallet);
 
   useEffect(() => {
     if (!preparingWallet) return;
-    const timer = window.setTimeout(() => {
-      clearPrivySession();
-      setWalletTimedOut(true);
-      logout().catch(() => undefined);
-    }, 10000);
+    // Embedded wallet creation can hang — after 8s let the user into the app anyway.
+    const timer = window.setTimeout(() => setSkipWalletWait(true), 8000);
     return () => window.clearTimeout(timer);
-  }, [preparingWallet, logout]);
+  }, [preparingWallet]);
 
   if (!ready) {
     return (
