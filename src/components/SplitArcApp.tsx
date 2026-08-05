@@ -4,14 +4,12 @@ import { createPublicClient, createWalletClient, custom, erc20Abi, formatUnits, 
 import { useAppTheme } from "@/components/PrivyAppProvider";
 import {
   ARC_TESTNET_ID,
-  USDC_ADDRESS,
-  USDC_DECIMALS,
   SPLITARC_ADDRESS,
   SPLITARC_ABI,
   EXPLORER_URL,
   arcTestnet,
 } from "@/lib/arc";
-import { CHAINS, CHAIN_LIST, type ChainKey, type ChainInfo } from "@/lib/chains";
+import { TOKENS, TOKEN_LIST, type TokenKey, type TokenInfo } from "@/lib/tokens";
 import {
   useContacts,
   useHistory,
@@ -29,13 +27,11 @@ type Recipient = {
   id: string;
   address: string;
   percent: string;
-  chain: ChainKey;
 };
 
 type SendResult = {
   address: string;
   amount: string;
-  chain: ChainKey;
   txHash: string;
 };
 
@@ -135,51 +131,40 @@ function ProfileIcon() {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2"/><path d="M4 21a8 8 0 0 1 16 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>;
 }
 
-/* ---------------- Chain UI ---------------- */
+/* ---------------- Token UI ---------------- */
 
-function ChainBadge({ chain }: { chain: ChainInfo }) {
-  if (chain.isArc) {
-    return (
-      <span
-        className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-        style={{ backgroundColor: ACCENT_TINT, color: ACCENT }}
-      >
-        ⚡ Instant
-      </span>
-    );
-  }
+function TokenIcon({ token, size = 20 }: { token: TokenInfo; size?: number }) {
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
-      🌉 Bridged
+    <span
+      className="inline-flex items-center justify-center rounded-full font-bold text-white shrink-0"
+      style={{ backgroundColor: token.color, width: size, height: size, fontSize: Math.round(size * 0.55) }}
+      aria-hidden
+    >
+      {token.icon}
     </span>
   );
 }
 
-function ChainSelect({ value, onChange }: { value: ChainKey; onChange: (c: ChainKey) => void }) {
+function TokenSelect({ value, onChange }: { value: TokenKey; onChange: (t: TokenKey) => void }) {
+  const token = TOKENS[value];
   return (
     <div className="relative inline-flex items-center">
       <select
         value={value}
-        onChange={(e) => onChange(e.target.value as ChainKey)}
-        className="appearance-none text-xs font-semibold pl-7 pr-6 py-1 rounded-lg bg-neutral-50 border border-neutral-200 text-neutral-800 outline-none cursor-pointer hover:bg-neutral-100"
+        onChange={(e) => onChange(e.target.value as TokenKey)}
+        aria-label="Select token"
+        className="appearance-none text-sm font-bold pl-9 pr-7 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-800 outline-none cursor-pointer hover:bg-neutral-100"
       >
-        {CHAIN_LIST.map((c) => (
-          <option key={c.key} value={c.key}>
-            {c.shortName}
+        {TOKEN_LIST.map((t) => (
+          <option key={t.key} value={t.key}>
+            {t.symbol}
           </option>
         ))}
       </select>
-      <span
-        className="absolute left-1.5 h-4 w-4 rounded-full flex items-center justify-center text-[10px] font-bold text-white pointer-events-none overflow-hidden"
-        style={{ backgroundColor: CHAINS[value].color }}
-      >
-        {CHAINS[value].logo ? (
-          <img src={CHAINS[value].logo} alt="" className="h-4 w-4 object-cover" />
-        ) : (
-          CHAINS[value].icon
-        )}
+      <span className="absolute left-2 pointer-events-none">
+        <TokenIcon token={token} size={20} />
       </span>
-      <span className="absolute right-1.5 text-neutral-400 text-[10px] pointer-events-none">▾</span>
+      <span className="absolute right-2 text-neutral-400 text-[10px] pointer-events-none">▾</span>
     </div>
   );
 }
@@ -207,7 +192,7 @@ function Header({ children, actions }: { children?: React.ReactNode; actions?: R
   );
 }
 
-function WalletBar({ address, wallet, displayName }: { address?: string; wallet: ReturnType<typeof useWallets>["wallets"][number] | undefined; displayName: string }) {
+function WalletBar({ address, wallet, displayName, token }: { address?: string; wallet: ReturnType<typeof useWallets>["wallets"][number] | undefined; displayName: string; token: TokenInfo }) {
   const isConnected = !!address;
   const chainId = wallet?.chainId;
   const onWrongChain = isConnected && chainId !== `eip155:${ARC_TESTNET_ID}`;
@@ -216,11 +201,12 @@ function WalletBar({ address, wallet, displayName }: { address?: string; wallet:
     if (!address || onWrongChain) return;
     const client = createPublicClient({ chain: arcTestnet, transport: http() });
     let active = true;
-    const load = () => client.readContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).then((raw) => active && setBalance(formatUnits(raw, USDC_DECIMALS))).catch(() => undefined);
+    const load = () => client.readContract({ address: token.address, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).then((raw) => active && setBalance(formatUnits(raw, token.decimals))).catch(() => undefined);
+    setBalance("0");
     load();
     const timer = window.setInterval(load, 10_000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [address, onWrongChain]);
+  }, [address, onWrongChain, token.address, token.decimals]);
 
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-3.5 flex items-center justify-between shadow-sm">
@@ -252,18 +238,18 @@ function WalletBar({ address, wallet, displayName }: { address?: string; wallet:
                 Balance
               </div>
               <div className="text-sm font-bold" style={{ color: ACCENT }}>
-                 {Number(balance).toFixed(2)} USDC
+                 {Number(balance).toFixed(2)} {token.symbol}
               </div>
             </div>
             <a
-              href="https://faucet.circle.com"
+              href={token.faucet ?? "https://faucet.circle.com"}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition active:scale-[.98] hover:bg-neutral-50"
               style={{ color: ACCENT, borderColor: "#C7E9DC" }}
             >
               <DropletIcon />
-              Get test USDC
+              Get test {token.symbol}
             </a>
           </div>
         )}
@@ -354,7 +340,7 @@ function ContactPicker({
 
 /* ---------------- Main App ---------------- */
 
-type PrefillRecipient = { address: string; percent: string; chain: ChainKey };
+type PrefillRecipient = { address: string; percent: string };
 type Prefill = {
   name: string;
   mode: Mode;
@@ -372,23 +358,26 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
   const templatesStore = useTemplates(address);
 
   const [tab, setTab] = useState<Tab>("new");
+  const [tokenKey, setTokenKey] = useState<TokenKey>("usdc");
+  const token = TOKENS[tokenKey];
 
   const [balanceStr, setBalanceStr] = useState<string>();
   useEffect(() => {
     if (!address || chainId !== `eip155:${ARC_TESTNET_ID}`) return;
     let active = true;
-    const load = () => publicClient.readContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).then((raw) => active && setBalanceStr(formatUnits(raw, USDC_DECIMALS))).catch(() => undefined);
+    const load = () => publicClient.readContract({ address: token.address, abi: erc20Abi, functionName: "balanceOf", args: [address as `0x${string}`] }).then((raw) => active && setBalanceStr(formatUnits(raw, token.decimals))).catch(() => undefined);
+    setBalanceStr(undefined);
     load();
     const timer = window.setInterval(load, 10_000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [address, chainId, publicClient]);
+  }, [address, chainId, publicClient, token.address, token.decimals]);
 
   const [splitName, setSplitName] = useState("");
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState<Mode>("equal");
   const [recipients, setRecipients] = useState<Recipient[]>([
-    { id: uid(), address: "", percent: "50", chain: "arc" },
-    { id: uid(), address: "", percent: "50", chain: "arc" },
+    { id: uid(), address: "", percent: "50" },
+    { id: uid(), address: "", percent: "50" },
   ]);
   const [sendStatus, setSendStatus] = useState<"idle" | "approving" | "splitting">("idle");
   const [results, setResults] = useState<SendResult[] | null>(null);
@@ -409,7 +398,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
 
   function addRecipient() {
     if (recipients.length >= 10) return;
-    setRecipients((rs) => [...rs, { id: uid(), address: "", percent: "0", chain: "arc" }]);
+    setRecipients((rs) => [...rs, { id: uid(), address: "", percent: "0" }]);
   }
   function removeRecipient(id: string) {
     setRecipients((rs) => (rs.length <= 1 ? rs : rs.filter((r) => r.id !== id)));
@@ -433,7 +422,6 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
         id: uid(),
         address: r.address,
         percent: r.percent,
-        chain: r.chain,
       })),
     );
     setResults(null);
@@ -456,7 +444,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
       mode,
       recipients: recipients
         .filter((r) => r.address.trim())
-        .map((r) => ({ address: r.address.trim(), percent: r.percent, chain: r.chain })),
+        .map((r) => ({ address: r.address.trim(), percent: r.percent, chain: "arc" })),
     };
     templatesStore.add(tpl);
     setError(null);
@@ -502,7 +490,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
     }
 
     const perRecipientWei = validRecipients.map((r) =>
-      parseUnits(amountFor(r).toFixed(USDC_DECIMALS), USDC_DECIMALS),
+      parseUnits(amountFor(r).toFixed(token.decimals), token.decimals),
     );
     const totalWei = perRecipientWei.reduce((a, b) => a + b, 0n);
     const addresses = validRecipients.map((r) => r.address.trim() as `0x${string}`);
@@ -514,7 +502,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
       setSendStatus("approving");
       const approveHash = await walletClient.writeContract({
         account,
-        address: USDC_ADDRESS,
+        address: token.address,
         abi: erc20Abi,
         functionName: "approve",
         args: [SPLITARC_ADDRESS, totalWei],
@@ -535,8 +523,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
 
       const recs: SendResult[] = validRecipients.map((r, i) => ({
         address: r.address.trim(),
-        amount: formatUnits(perRecipientWei[i], USDC_DECIMALS),
-        chain: r.chain,
+        amount: formatUnits(perRecipientWei[i], token.decimals),
         txHash: splitHash,
       }));
       setResults(recs);
@@ -545,11 +532,12 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
       const entry: HistoryEntry = {
         id: uid(),
         name: splitName.trim(),
-        total: totalAmount.toFixed(USDC_DECIMALS),
+        total: totalAmount.toFixed(token.decimals),
         timestamp: Date.now(),
         txHash: splitHash,
         mode,
-        recipients: recs.map((r) => ({ address: r.address, amount: r.amount, chain: r.chain })),
+        token: token.symbol,
+        recipients: recs.map((r) => ({ address: r.address, amount: r.amount, chain: "arc" })),
       };
       historyStore.add(entry);
     } catch (e) {
@@ -581,27 +569,17 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
           </div>
           <h2 className="mt-6 text-3xl font-bold text-neutral-900">Split Complete!</h2>
           <p className="text-sm text-neutral-500 mt-2">
-            Sent USDC to {results.length} recipient{results.length === 1 ? "" : "s"}
+            Sent {token.symbol} to {results.length} recipient{results.length === 1 ? "" : "s"}
           </p>
         </div>
         <div className="space-y-3">
           {results.map((r, i) => {
-            const chainInfo = CHAINS[r.chain];
             const contactName = findContactName(contactsStore.items, r.address);
             return (
               <div key={r.address + i} className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 text-white overflow-hidden"
-                      style={{ backgroundColor: chainInfo.color }}
-                    >
-                      {chainInfo.logo ? (
-                        <img src={chainInfo.logo} alt="" className="h-8 w-8 object-cover" />
-                      ) : (
-                        chainInfo.icon
-                      )}
-                    </div>
+                    <TokenIcon token={token} size={32} />
                     <div className="flex flex-col min-w-0">
                       <span className="text-sm text-neutral-900 truncate font-semibold">
                         {contactName ?? truncate(r.address)}
@@ -612,7 +590,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
                     </div>
                   </div>
                   <span className="font-bold text-base shrink-0" style={{ color: ACCENT }}>
-                    {r.amount} USDC
+                    {r.amount} {token.symbol}
                   </span>
                 </div>
               </div>
@@ -665,7 +643,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
 
   return (
     <div className="space-y-5">
-       <WalletBar address={address} wallet={wallet} displayName={displayName} />
+       <WalletBar address={address} wallet={wallet} displayName={displayName} token={token} />
       <TabBar tab={tab} setTab={setTab} />
 
       {tab === "new" && (
@@ -695,14 +673,14 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
                   placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))}
-                  className="w-[60%] text-5xl font-bold text-center outline-none bg-transparent placeholder:text-neutral-300 tabular-nums"
+                  className="w-[55%] text-5xl font-bold text-center outline-none bg-transparent placeholder:text-neutral-300 tabular-nums"
                   style={{ color: amount ? "#0a0a0a" : undefined }}
                 />
-                <span className="text-lg font-bold text-neutral-400">USDC</span>
+                <TokenSelect value={tokenKey} onChange={setTokenKey} />
               </div>
               <div className="mt-2 text-xs text-neutral-500">
                 {isConnected
-                  ? `Available: ${balanceStr ? Number(balanceStr).toFixed(2) : "0.00"} USDC`
+                  ? `Available: ${balanceStr ? Number(balanceStr).toFixed(2) : "0.00"} ${token.symbol}`
                   : "Connect wallet to see balance"}
               </div>
             </div>
@@ -744,7 +722,6 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
 
             {recipients.map((r, i) => {
               const calc = amountFor(r);
-              const chainInfo = CHAINS[r.chain];
               const trimmed = r.address.trim();
               const addressInvalid = trimmed.length > 0 && !isAddress(trimmed);
               const contactName = trimmed ? findContactName(contactsStore.items, trimmed) : null;
@@ -820,13 +797,6 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
                           Invalid address — must be 0x followed by 40 hex characters
                         </div>
                       )}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <ChainSelect
-                          value={r.chain}
-                          onChange={(c) => updateRecipient(r.id, { chain: c })}
-                        />
-                        <ChainBadge chain={chainInfo} />
-                      </div>
                     </div>
                     <button
                       type="button"
@@ -855,7 +825,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
                       <span className="text-xs text-neutral-500">Equal share</span>
                     )}
                     <span className="text-base font-bold tabular-nums" style={{ color: ACCENT }}>
-                      {calc.toFixed(2)} USDC
+                      {calc.toFixed(2)} {token.symbol}
                     </span>
                   </div>
                 </div>
@@ -878,33 +848,19 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
           </div>
 
           {/* Summary */}
-          {(() => {
-            const uniqueChains = new Set(validRecipients.map((r) => r.chain));
-            const isCrossChain =
-              uniqueChains.size > 1 || (uniqueChains.size === 1 && !uniqueChains.has("arc"));
-            return (
-              <div
-                className="rounded-2xl border p-4 text-sm space-y-2"
-                style={{ backgroundColor: ACCENT_TINT, borderColor: "#C7E9DC" }}
-              >
-                <Row label="Total" value={`${totalAmount.toFixed(2)} USDC`} accent />
-                <Row label="Recipients" value={String(validRecipients.length)} />
-                {mode === "equal" && validRecipients.length > 0 && (
-                  <Row label="Per wallet" value={`${equalShare.toFixed(2)} USDC`} />
-                )}
-                <div className="border-t my-1" style={{ borderColor: "#C7E9DC" }} />
-                <Row label="Est. gas" value="~0.01 USDC" />
-                <Row
-                  label="Network"
-                  value={
-                    isCrossChain
-                      ? `Cross-chain split · ${uniqueChains.size} chain${uniqueChains.size === 1 ? "" : "s"}`
-                      : "Arc Testnet"
-                  }
-                />
-              </div>
-            );
-          })()}
+          <div
+            className="rounded-2xl border p-4 text-sm space-y-2"
+            style={{ backgroundColor: ACCENT_TINT, borderColor: "#C7E9DC" }}
+          >
+            <Row label="Total" value={`${totalAmount.toFixed(2)} ${token.symbol}`} accent />
+            <Row label="Recipients" value={String(validRecipients.length)} />
+            {mode === "equal" && validRecipients.length > 0 && (
+              <Row label="Per wallet" value={`${equalShare.toFixed(2)} ${token.symbol}`} />
+            )}
+            <div className="border-t my-1" style={{ borderColor: "#C7E9DC" }} />
+            <Row label="Est. gas" value="~0.01 USDC" />
+            <Row label="Network" value="Arc Testnet" />
+          </div>
 
           {error && (
             <div className="rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm p-4">
@@ -926,7 +882,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
             >
               <SendIcon />
               {sendStatus === "approving"
-                ? "Approving USDC…"
+                ? `Approving ${token.symbol}…`
                 : sendStatus === "splitting"
                   ? "Sending split…"
                   : !isConnected
@@ -961,7 +917,6 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
               recipients: h.recipients.map((r) => ({
                 address: r.address,
                 percent: (100 / Math.max(h.recipients.length, 1)).toString(),
-                chain: (r.chain as ChainKey) ?? "arc",
               })),
             })
           }
@@ -985,7 +940,6 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
               recipients: t.recipients.map((r) => ({
                 address: r.address,
                 percent: r.percent,
-                chain: (r.chain as ChainKey) ?? "arc",
               })),
             })
           }
@@ -1045,7 +999,7 @@ function HistoryPanel({
             </div>
             <div className="text-right shrink-0">
               <div className="text-base font-bold tabular-nums" style={{ color: ACCENT }}>
-                {Number(h.total).toFixed(2)} USDC
+                {Number(h.total).toFixed(2)} {h.token ?? "USDC"}
               </div>
               <div className="text-[11px] text-neutral-500">
                 {h.recipients.length} recipient{h.recipients.length === 1 ? "" : "s"}
@@ -1063,7 +1017,7 @@ function HistoryPanel({
                     )}
                   </span>
                   <span className="font-semibold tabular-nums" style={{ color: ACCENT }}>
-                    {Number(r.amount).toFixed(2)} USDC
+                    {Number(r.amount).toFixed(2)} {h.token ?? "USDC"}
                   </span>
                 </div>
               );
@@ -1311,7 +1265,9 @@ export default function SplitArcApp() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [customName, setCustomName] = useState("");
   const [walletTimedOut, setWalletTimedOut] = useState(false);
-  const wallet = wallets[0];
+  const [skipWalletWait, setSkipWalletWait] = useState(false);
+  // External wallets (MetaMask, Rabby…) win — no need to wait for an embedded wallet.
+  const wallet = wallets.find((w) => w.walletClientType !== "privy") ?? wallets[0];
   const address = wallet?.address;
   const identityName = user?.google?.name || user?.google?.email || user?.email?.address || "there";
   const fallbackName = identityName.includes("@") ? identityName.split("@")[0] : identityName;
@@ -1321,17 +1277,15 @@ export default function SplitArcApp() {
     setCustomName(window.localStorage.getItem(`splitarc:${user.id}:display-name`) ?? "");
   }, [user?.id]);
 
-  const preparingWallet = ready && authenticated && (!walletsReady || !wallet);
+  const preparingWallet =
+    ready && authenticated && !skipWalletWait && (!walletsReady || !wallet);
 
   useEffect(() => {
     if (!preparingWallet) return;
-    const timer = window.setTimeout(() => {
-      clearPrivySession();
-      setWalletTimedOut(true);
-      logout().catch(() => undefined);
-    }, 10000);
+    // Embedded wallet creation can hang — after 8s let the user into the app anyway.
+    const timer = window.setTimeout(() => setSkipWalletWait(true), 8000);
     return () => window.clearTimeout(timer);
-  }, [preparingWallet, logout]);
+  }, [preparingWallet]);
 
   if (!ready) {
     return (
