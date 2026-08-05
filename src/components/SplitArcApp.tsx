@@ -882,7 +882,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
             >
               <SendIcon />
               {sendStatus === "approving"
-                ? "Approving USDC…"
+                ? `Approving ${token.symbol}…`
                 : sendStatus === "splitting"
                   ? "Sending split…"
                   : !isConnected
@@ -999,7 +999,7 @@ function HistoryPanel({
             </div>
             <div className="text-right shrink-0">
               <div className="text-base font-bold tabular-nums" style={{ color: ACCENT }}>
-                {Number(h.total).toFixed(2)} USDC
+                {Number(h.total).toFixed(2)} {h.token ?? "USDC"}
               </div>
               <div className="text-[11px] text-neutral-500">
                 {h.recipients.length} recipient{h.recipients.length === 1 ? "" : "s"}
@@ -1017,7 +1017,7 @@ function HistoryPanel({
                     )}
                   </span>
                   <span className="font-semibold tabular-nums" style={{ color: ACCENT }}>
-                    {Number(r.amount).toFixed(2)} USDC
+                    {Number(r.amount).toFixed(2)} {h.token ?? "USDC"}
                   </span>
                 </div>
               );
