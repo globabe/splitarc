@@ -6,6 +6,20 @@
 // You can pass additional config via defineConfig({ vite: { ... } }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
+import { fileURLToPath } from "node:url";
+
+const eventsShim = fileURLToPath(new URL("./node_modules/events/events.js", import.meta.url));
+
+// WalletConnect (via Privy) imports the Node "events" module in browser code;
+// Vite would otherwise stub it out, so point it at the `events` polyfill package.
+const eventsPolyfillPlugin = {
+  name: "events-polyfill",
+  enforce: "pre" as const,
+  resolveId(source: string) {
+    if (source === "events" || source === "node:events") return eventsShim;
+    return null;
+  },
+};
 
 // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
 // @cloudflare/vite-plugin builds from this — wrangler.jsonc main alone is insufficient.
@@ -14,6 +28,6 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    plugins: [mcpPlugin()],
+    plugins: [eventsPolyfillPlugin, mcpPlugin()],
   },
 });
