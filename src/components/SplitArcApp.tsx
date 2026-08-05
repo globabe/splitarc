@@ -400,7 +400,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
 
   function addRecipient() {
     if (recipients.length >= 10) return;
-    setRecipients((rs) => [...rs, { id: uid(), address: "", percent: "0", chain: "arc" }]);
+    setRecipients((rs) => [...rs, { id: uid(), address: "", percent: "0" }]);
   }
   function removeRecipient(id: string) {
     setRecipients((rs) => (rs.length <= 1 ? rs : rs.filter((r) => r.id !== id)));
@@ -424,7 +424,6 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
         id: uid(),
         address: r.address,
         percent: r.percent,
-        chain: r.chain,
       })),
     );
     setResults(null);
@@ -447,7 +446,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
       mode,
       recipients: recipients
         .filter((r) => r.address.trim())
-        .map((r) => ({ address: r.address.trim(), percent: r.percent, chain: r.chain })),
+        .map((r) => ({ address: r.address.trim(), percent: r.percent, chain: "arc" })),
     };
     templatesStore.add(tpl);
     setError(null);
@@ -493,7 +492,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
     }
 
     const perRecipientWei = validRecipients.map((r) =>
-      parseUnits(amountFor(r).toFixed(USDC_DECIMALS), USDC_DECIMALS),
+      parseUnits(amountFor(r).toFixed(token.decimals), token.decimals),
     );
     const totalWei = perRecipientWei.reduce((a, b) => a + b, 0n);
     const addresses = validRecipients.map((r) => r.address.trim() as `0x${string}`);
@@ -505,7 +504,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
       setSendStatus("approving");
       const approveHash = await walletClient.writeContract({
         account,
-        address: USDC_ADDRESS,
+        address: token.address,
         abi: erc20Abi,
         functionName: "approve",
         args: [SPLITARC_ADDRESS, totalWei],
@@ -526,8 +525,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
 
       const recs: SendResult[] = validRecipients.map((r, i) => ({
         address: r.address.trim(),
-        amount: formatUnits(perRecipientWei[i], USDC_DECIMALS),
-        chain: r.chain,
+        amount: formatUnits(perRecipientWei[i], token.decimals),
         txHash: splitHash,
       }));
       setResults(recs);
@@ -536,11 +534,12 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
       const entry: HistoryEntry = {
         id: uid(),
         name: splitName.trim(),
-        total: totalAmount.toFixed(USDC_DECIMALS),
+        total: totalAmount.toFixed(token.decimals),
         timestamp: Date.now(),
         txHash: splitHash,
         mode,
-        recipients: recs.map((r) => ({ address: r.address, amount: r.amount, chain: r.chain })),
+        token: token.symbol,
+        recipients: recs.map((r) => ({ address: r.address, amount: r.amount, chain: "arc" })),
       };
       historyStore.add(entry);
     } catch (e) {

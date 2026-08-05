@@ -9,6 +9,8 @@ export type HistoryEntry = {
   timestamp: number;
   txHash: string;
   mode: "equal" | "custom";
+  /** Token symbol used for this split (defaults to USDC for older entries) */
+  token?: string;
   recipients: HistoryRecipient[];
 };
 export type TemplateRecipient = { address: string; percent: string; chain: string };
