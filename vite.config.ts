@@ -16,9 +16,12 @@ export default defineConfig({
   vite: {
     plugins: [mcpPlugin()],
     resolve: {
-      alias: {
-        events: "events",
-      },
+      alias: [
+        {
+          find: /^events$/,
+          replacement: fileURLToPath(new URL("./node_modules/events/events.js", import.meta.url)),
+        },
+      ],
     },
   },
 });
