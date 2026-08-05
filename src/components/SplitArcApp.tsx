@@ -920,7 +920,6 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
               recipients: h.recipients.map((r) => ({
                 address: r.address,
                 percent: (100 / Math.max(h.recipients.length, 1)).toString(),
-                chain: (r.chain as ChainKey) ?? "arc",
               })),
             })
           }
@@ -944,7 +943,6 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
               recipients: t.recipients.map((r) => ({
                 address: r.address,
                 percent: r.percent,
-                chain: (r.chain as ChainKey) ?? "arc",
               })),
             })
           }
