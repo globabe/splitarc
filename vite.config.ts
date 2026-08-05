@@ -15,5 +15,10 @@ export default defineConfig({
   },
   vite: {
     plugins: [mcpPlugin()],
+    resolve: {
+      alias: {
+        events: "events",
+      },
+    },
   },
 });
