@@ -644,9 +644,19 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Retur
           onClick={() => {
             setResults(null);
             setLastTxHash(null);
-            setAmount("");
             setCopiedTx(null);
+            setSplitName("");
+            setAmount("");
+            setMode("equal");
+            setRecipients([
+              { id: uid(), address: "", percent: "50" },
+              { id: uid(), address: "", percent: "50" },
+            ]);
+            setError(null);
+            setPickerOpenFor(null);
+            setTab("new");
           }}
+
           className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98] shadow-sm"
           style={{ backgroundColor: ACCENT }}
         >
