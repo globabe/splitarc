@@ -184,13 +184,21 @@ function Header({ children, actions }: { children?: React.ReactNode; actions?: R
   return (
     <div className="mb-6">
       <div className="flex items-center justify-between mb-4">
-        <a href="/" className="flex items-center gap-3 group" aria-label="Back to landing page">
+        <Link
+          to="/"
+          onClick={() => {
+            if (typeof window !== "undefined") window.sessionStorage.removeItem("splitarc:launched");
+          }}
+          className="flex items-center gap-3 group"
+          aria-label="Back to landing page"
+        >
           <Logo />
           <div className="leading-tight">
-            <div className="font-bold text-xl text-neutral-900 group-hover:underline">SplitArc</div>
+            <div className="font-bold text-xl text-neutral-900 dark:text-white group-hover:underline">SplitArc</div>
             <div className="text-xs text-neutral-500">USDC split payments</div>
           </div>
-        </a>
+        </Link>
+
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ backgroundColor: ACCENT_TINT, color: ACCENT }}>Arc Testnet</span>
           {actions}
