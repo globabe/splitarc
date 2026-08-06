@@ -50,7 +50,7 @@ export function PrivyAppProvider({ children }: { children: ReactNode }) {
           logo: "https://splitarc.lovable.app/logo.png",
         },
         embeddedWallets: {
-          ethereum: { createOnLogin: "users-without-wallets" },
+          ethereum: { createOnLogin: "off" },
         },
         supportedChains: [arcTestnet],
         defaultChain: arcTestnet,
