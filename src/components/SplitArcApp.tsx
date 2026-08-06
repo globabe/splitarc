@@ -1274,10 +1274,10 @@ function Row({ label, value, accent }: { label: string; value: string; accent?: 
 function clearPrivySession() {
   try {
     Object.keys(window.localStorage)
-      .filter((key) => key.startsWith("privy:"))
+      .filter((key) => key.toLowerCase().startsWith("privy"))
       .forEach((key) => window.localStorage.removeItem(key));
     Object.keys(window.sessionStorage)
-      .filter((key) => key.startsWith("privy:"))
+      .filter((key) => key.toLowerCase().startsWith("privy"))
       .forEach((key) => window.sessionStorage.removeItem(key));
   } catch {
     /* ignore */
@@ -1317,6 +1317,7 @@ export default function SplitArcApp() {
   const [linkedExternal, setLinkedExternal] = useState(false);
   const [creatingWallet, setCreatingWallet] = useState(false);
   const [walletError, setWalletError] = useState<string | null>(null);
+  const [walletCheckTimedOut, setWalletCheckTimedOut] = useState(false);
 
   const { connectWallet } = useConnectWallet({
     onSuccess: () => {
@@ -1344,6 +1345,16 @@ export default function SplitArcApp() {
   const fallbackName = identityName.includes("@") ? identityName.split("@")[0] : identityName;
   const displayName = customName || fallbackName;
 
+  useEffect(() => {
+    if (!authenticated || wallet || walletsReady) {
+      setWalletCheckTimedOut(false);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setWalletCheckTimedOut(true), 8_000);
+    return () => window.clearTimeout(timeout);
+  }, [authenticated, wallet, walletsReady]);
+
   const startCreateWallet = useCallback(async () => {
     setWalletError(null);
     setCreatingWallet(true);
@@ -1362,10 +1373,6 @@ export default function SplitArcApp() {
   }, [createWallet]);
 
   const guardedLogin = (method: "email" | "google") => {
-    if (externalWallet && !authenticated) {
-      setLoginNotice("A wallet is already connected. Please logout first before signing in with email.");
-      return;
-    }
     setLoginNotice(null);
     if (method === "google") {
       initOAuth({ provider: "google" }).catch(() => login({ loginMethods: ["google"] }));
@@ -1407,13 +1414,33 @@ export default function SplitArcApp() {
     );
   }
 
-  if (!walletsReady) {
+  if (!wallet && !walletsReady && !walletCheckTimedOut) {
     return (
       <AuthShell theme={theme}>
         <div className="mx-auto w-fit"><Logo /></div>
         <div className="mt-6 flex flex-col items-center gap-3">
           <Spinner />
           <p className="text-sm text-neutral-500 dark:text-neutral-400">Checking your wallet…</p>
+        </div>
+      </AuthShell>
+    );
+  }
+
+  if (!wallet && !walletsReady && walletCheckTimedOut) {
+    return (
+      <AuthShell theme={theme}>
+        <div className="mx-auto w-fit"><Logo /></div>
+        <h1 className="mt-6 text-2xl font-bold text-neutral-900 dark:text-white">Wallet check timed out</h1>
+        <p className="mt-3 text-sm text-neutral-600 dark:text-neutral-400">
+          Your sign-in completed, but Privy could not finish loading the wallet connection.
+        </p>
+        <div className="mt-8 space-y-3">
+          <button type="button" onClick={() => window.location.reload()} className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98]" style={{ backgroundColor: ACCENT }}>
+            Try again
+          </button>
+          <button type="button" onClick={async () => { await logout(); clearPrivySession(); window.location.reload(); }} className="w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 font-semibold text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">
+            Reset sign-in
+          </button>
         </div>
       </AuthShell>
     );
