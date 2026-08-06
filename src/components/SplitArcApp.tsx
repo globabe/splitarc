@@ -1,7 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useLogin, usePrivy, useWallets } from "@privy-io/react-auth";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useConnectWallet,
+  useCreateWallet,
+  useLogin,
+  useLoginWithOAuth,
+  usePrivy,
+  useWallets,
+} from "@privy-io/react-auth";
+import { Link } from "@tanstack/react-router";
 import { createPublicClient, createWalletClient, custom, erc20Abi, formatUnits, http, parseUnits, isAddress } from "viem";
 import { useAppTheme } from "@/components/PrivyAppProvider";
+
 import {
   ARC_TESTNET_ID,
   SPLITARC_ADDRESS,
