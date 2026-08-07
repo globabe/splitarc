@@ -1381,7 +1381,6 @@ export default function SplitArcApp() {
           <button type="button" onClick={() => { setLoginNotice(null); login({ loginMethods: ["wallet"] }); }} className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98]" style={{ backgroundColor: ACCENT }}>Connect Wallet</button>
           <button type="button" onClick={guardedLogin} className="w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 font-semibold text-neutral-900 transition active:scale-[.98] dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">Continue with email</button>
 
-          <button type="button" onClick={() => { setLoginNotice(null); login({ loginMethods: ["wallet"] }); }} className="w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 font-semibold text-neutral-900 transition active:scale-[.98] dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">Connect Wallet</button>
         </div>
         <button type="button" onClick={() => { clearPrivySession(); window.location.reload(); }} className="mt-6 text-xs font-semibold underline" style={{ color: ACCENT }}>
           Having trouble? Click here to reset
