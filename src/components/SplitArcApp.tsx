@@ -1357,6 +1357,32 @@ export default function SplitArcApp() {
     login({ loginMethods: ["email"] });
   };
 
+  const startGoogleLogin = async () => {
+    setLoginNotice(null);
+    try {
+      await initOAuth({ provider: "google" });
+    } catch {
+      setLoginNotice("Google sign-in could not be started. Please try again.");
+    }
+  };
+
+  const startCreateWallet = async () => {
+    setWalletError(null);
+    setCreatingWallet(true);
+    try {
+      await Promise.race([
+        createWallet(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 30_000)),
+      ]);
+    } catch {
+      setWalletError("Wallet creation is taking too long. Please try connecting an existing wallet instead.");
+    } finally {
+      setCreatingWallet(false);
+    }
+  };
+
+
+
 
   if (!ready) {
     return (
