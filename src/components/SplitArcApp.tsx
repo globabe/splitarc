@@ -1464,7 +1464,7 @@ export default function SplitArcApp() {
         </h1>
         <p className="mt-3 text-sm text-neutral-600 dark:text-neutral-400">
           {isSocialAccount
-            ? `You're signed in as ${email ?? displayName}. To send splits, connect a wallet like MetaMask — SplitArc uses your own wallet to sign transactions.`
+            ? `You're signed in as ${email ?? displayName}. To send splits you need a wallet. You can either connect an existing wallet or we'll create one for you.`
             : "Please connect a wallet like MetaMask to continue."}
         </p>
         {walletError && (
