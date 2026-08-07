@@ -1307,6 +1307,10 @@ function AuthShell({ theme, children }: { theme: string; children: React.ReactNo
 export default function SplitArcApp() {
   const { ready, authenticated, user, logout } = usePrivy();
   const { login } = useLogin();
+  const { initOAuth } = useLoginWithOAuth();
+  const { createWallet } = useCreateWallet();
+  const [creatingWallet, setCreatingWallet] = useState(false);
+
   const { wallets, ready: walletsReady } = useWallets();
   const { theme, toggleTheme } = useAppTheme();
   const [profileOpen, setProfileOpen] = useState(false);
