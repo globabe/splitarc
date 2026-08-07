@@ -1443,6 +1443,10 @@ export default function SplitArcApp() {
           <button type="button" onClick={() => connectWallet()} className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98]" style={{ backgroundColor: ACCENT }}>
             Connect existing wallet
           </button>
+          <button type="button" disabled={creatingWallet} onClick={startCreateWallet} className="w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 font-semibold text-neutral-900 transition active:scale-[.98] disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">
+            {creatingWallet ? "Creating your wallet…" : "Create a new wallet"}
+          </button>
+
 
           <button type="button" onClick={() => logout()} className="w-full rounded-2xl px-5 py-3 text-sm font-semibold text-red-600">
             Logout
