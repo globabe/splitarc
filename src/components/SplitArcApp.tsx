@@ -1355,31 +1355,11 @@ export default function SplitArcApp() {
     return () => window.clearTimeout(timeout);
   }, [authenticated, wallet, walletsReady]);
 
-  const startCreateWallet = useCallback(async () => {
-    setWalletError(null);
-    setCreatingWallet(true);
-    try {
-      await Promise.race([
-        createWallet(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 30_000)),
-      ]);
-    } catch {
-      setWalletError(
-        "Wallet creation is taking too long. Please try connecting an existing wallet instead.",
-      );
-    } finally {
-      setCreatingWallet(false);
-    }
-  }, [createWallet]);
-
-  const guardedLogin = (method: "email" | "google") => {
+  const guardedLogin = () => {
     setLoginNotice(null);
-    if (method === "google") {
-      initOAuth({ provider: "google" }).catch(() => login({ loginMethods: ["google"] }));
-      return;
-    }
     login({ loginMethods: ["email"] });
   };
+
 
   if (!ready) {
     return (
