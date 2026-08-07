@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useConnectWallet,
-  useCreateWallet,
   useLogin,
-  useLoginWithOAuth,
   usePrivy,
   useWallets,
 } from "@privy-io/react-auth";
@@ -1307,15 +1305,12 @@ function AuthShell({ theme, children }: { theme: string; children: React.ReactNo
 export default function SplitArcApp() {
   const { ready, authenticated, user, logout } = usePrivy();
   const { login } = useLogin();
-  const { initOAuth } = useLoginWithOAuth();
-  const { createWallet } = useCreateWallet();
   const { wallets, ready: walletsReady } = useWallets();
   const { theme, toggleTheme } = useAppTheme();
   const [profileOpen, setProfileOpen] = useState(false);
   const [customName, setCustomName] = useState("");
   const [loginNotice, setLoginNotice] = useState<string | null>(null);
   const [linkedExternal, setLinkedExternal] = useState(false);
-  const [creatingWallet, setCreatingWallet] = useState(false);
   const [walletError, setWalletError] = useState<string | null>(null);
   const [walletCheckTimedOut, setWalletCheckTimedOut] = useState(false);
 
@@ -1355,31 +1350,11 @@ export default function SplitArcApp() {
     return () => window.clearTimeout(timeout);
   }, [authenticated, wallet, walletsReady]);
 
-  const startCreateWallet = useCallback(async () => {
-    setWalletError(null);
-    setCreatingWallet(true);
-    try {
-      await Promise.race([
-        createWallet(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 30_000)),
-      ]);
-    } catch {
-      setWalletError(
-        "Wallet creation is taking too long. Please try connecting an existing wallet instead.",
-      );
-    } finally {
-      setCreatingWallet(false);
-    }
-  }, [createWallet]);
-
-  const guardedLogin = (method: "email" | "google") => {
+  const guardedLogin = () => {
     setLoginNotice(null);
-    if (method === "google") {
-      initOAuth({ provider: "google" }).catch(() => login({ loginMethods: ["google"] }));
-      return;
-    }
     login({ loginMethods: ["email"] });
   };
+
 
   if (!ready) {
     return (
@@ -1403,9 +1378,9 @@ export default function SplitArcApp() {
           <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">{loginNotice}</p>
         )}
         <div className="mt-8 space-y-3">
-          <button type="button" onClick={() => guardedLogin("email")} className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98]" style={{ backgroundColor: ACCENT }}>Continue with email</button>
-          <button type="button" onClick={() => guardedLogin("google")} className="w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 font-semibold text-neutral-900 transition active:scale-[.98] dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">Continue with Google</button>
-          <button type="button" onClick={() => { setLoginNotice(null); login({ loginMethods: ["wallet"] }); }} className="w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 font-semibold text-neutral-900 transition active:scale-[.98] dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">Connect Wallet</button>
+          <button type="button" onClick={() => { setLoginNotice(null); login({ loginMethods: ["wallet"] }); }} className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98]" style={{ backgroundColor: ACCENT }}>Connect Wallet</button>
+          <button type="button" onClick={guardedLogin} className="w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 font-semibold text-neutral-900 transition active:scale-[.98] dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">Continue with email</button>
+
         </div>
         <button type="button" onClick={() => { clearPrivySession(); window.location.reload(); }} className="mt-6 text-xs font-semibold underline" style={{ color: ACCENT }}>
           Having trouble? Click here to reset
@@ -1456,7 +1431,7 @@ export default function SplitArcApp() {
         </h1>
         <p className="mt-3 text-sm text-neutral-600 dark:text-neutral-400">
           {isSocialAccount
-            ? `You're signed in as ${email ?? displayName}. To send splits you need a wallet. You can either connect an existing wallet or we'll create one for you.`
+            ? `You're signed in as ${email ?? displayName}. To send splits, connect a wallet like MetaMask — SplitArc uses your own wallet to sign transactions.`
             : "Please connect a wallet like MetaMask to continue."}
         </p>
         {walletError && (
@@ -1466,11 +1441,7 @@ export default function SplitArcApp() {
           <button type="button" onClick={() => connectWallet()} className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98]" style={{ backgroundColor: ACCENT }}>
             Connect existing wallet
           </button>
-          {isSocialAccount && (
-            <button type="button" disabled={creatingWallet} onClick={startCreateWallet} className="w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 font-semibold text-neutral-900 transition active:scale-[.98] disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">
-              {creatingWallet ? "Creating your wallet…" : "Create a new wallet"}
-            </button>
-          )}
+
           <button type="button" onClick={() => logout()} className="w-full rounded-2xl px-5 py-3 text-sm font-semibold text-red-600">
             Logout
           </button>
