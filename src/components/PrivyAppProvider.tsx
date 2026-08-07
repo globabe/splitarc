@@ -47,7 +47,6 @@ export function PrivyAppProvider({ children }: { children: ReactNode }) {
         appearance: {
           theme,
           accentColor: "#1D9E75",
-          logo: "https://splitarc.lovable.app/logo.png",
         },
         embeddedWallets: {
           ethereum: { createOnLogin: "off" },
