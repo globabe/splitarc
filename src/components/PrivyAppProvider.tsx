@@ -43,13 +43,13 @@ export function PrivyAppProvider({ children }: { children: ReactNode }) {
     <PrivyProvider
       appId="cmseiknvo00p80ckzbvlm3a1u"
       config={{
-        loginMethods: ["wallet", "email"],
+        loginMethods: ["email", "google", "wallet"],
         appearance: {
           theme,
           accentColor: "#1D9E75",
         },
         embeddedWallets: {
-          ethereum: { createOnLogin: "off" },
+          ethereum: { createOnLogin: "users-without-wallets" },
         },
         supportedChains: [arcTestnet],
         defaultChain: arcTestnet,
