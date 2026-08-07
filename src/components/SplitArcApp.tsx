@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useConnectWallet,
-  useCreateWallet,
   useLogin,
-  useLoginWithOAuth,
   usePrivy,
   useWallets,
 } from "@privy-io/react-auth";
@@ -1307,15 +1305,12 @@ function AuthShell({ theme, children }: { theme: string; children: React.ReactNo
 export default function SplitArcApp() {
   const { ready, authenticated, user, logout } = usePrivy();
   const { login } = useLogin();
-  const { initOAuth } = useLoginWithOAuth();
-  const { createWallet } = useCreateWallet();
   const { wallets, ready: walletsReady } = useWallets();
   const { theme, toggleTheme } = useAppTheme();
   const [profileOpen, setProfileOpen] = useState(false);
   const [customName, setCustomName] = useState("");
   const [loginNotice, setLoginNotice] = useState<string | null>(null);
   const [linkedExternal, setLinkedExternal] = useState(false);
-  const [creatingWallet, setCreatingWallet] = useState(false);
   const [walletError, setWalletError] = useState<string | null>(null);
   const [walletCheckTimedOut, setWalletCheckTimedOut] = useState(false);
 
