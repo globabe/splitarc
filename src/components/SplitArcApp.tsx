@@ -1437,7 +1437,7 @@ export default function SplitArcApp() {
         </h1>
         <p className="mt-3 text-sm text-neutral-600 dark:text-neutral-400">
           {isSocialAccount
-            ? `You're signed in as ${email ?? displayName}. To send splits you need a wallet. You can either connect an existing wallet or we'll create one for you.`
+            ? `You're signed in as ${email ?? displayName}. To send splits, connect a wallet like MetaMask — SplitArc uses your own wallet to sign transactions.`
             : "Please connect a wallet like MetaMask to continue."}
         </p>
         {walletError && (
@@ -1447,11 +1447,7 @@ export default function SplitArcApp() {
           <button type="button" onClick={() => connectWallet()} className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98]" style={{ backgroundColor: ACCENT }}>
             Connect existing wallet
           </button>
-          {isSocialAccount && (
-            <button type="button" disabled={creatingWallet} onClick={startCreateWallet} className="w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 font-semibold text-neutral-900 transition active:scale-[.98] disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">
-              {creatingWallet ? "Creating your wallet…" : "Create a new wallet"}
-            </button>
-          )}
+
           <button type="button" onClick={() => logout()} className="w-full rounded-2xl px-5 py-3 text-sm font-semibold text-red-600">
             Logout
           </button>
