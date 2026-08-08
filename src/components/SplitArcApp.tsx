@@ -210,7 +210,7 @@ function Header({ children, actions }: { children?: React.ReactNode; actions?: R
   );
 }
 
-function WalletBar({ address, wallet, displayName, token }: { address?: string; wallet: ReturnType<typeof useWallets>["wallets"][number] | undefined; displayName: string; token: TokenInfo }) {
+function WalletBar({ address, wallet, displayName, token }: { address?: string; wallet: WalletShim | undefined; displayName: string; token: TokenInfo }) {
   const isConnected = !!address;
   const chainId = wallet?.chainId;
   const onWrongChain = isConnected && chainId !== `eip155:${ARC_TESTNET_ID}`;
@@ -366,7 +366,7 @@ type Prefill = {
   recipients: PrefillRecipient[];
 };
 
-function App({ address, wallet, displayName }: { address?: string; wallet: ReturnType<typeof useWallets>["wallets"][number] | undefined; displayName: string }) {
+function App({ address, wallet, displayName }: { address?: string; wallet: WalletShim | undefined; displayName: string }) {
   const isConnected = !!address && !!wallet;
   const chainId = wallet?.chainId;
   const publicClient = useMemo(() => createPublicClient({ chain: arcTestnet, transport: http() }), []);
@@ -1272,24 +1272,11 @@ function Row({ label, value, accent }: { label: string; value: string; accent?: 
   );
 }
 
-function clearPrivySession() {
-  try {
-    Object.keys(window.localStorage)
-      .filter((key) => key.toLowerCase().startsWith("privy"))
-      .forEach((key) => window.localStorage.removeItem(key));
-    Object.keys(window.sessionStorage)
-      .filter((key) => key.toLowerCase().startsWith("privy"))
-      .forEach((key) => window.sessionStorage.removeItem(key));
-  } catch {
-    /* ignore */
-  }
-}
-
 function Spinner({ size = 28 }: { size?: number }) {
   return (
     <span
-      className="inline-block animate-spin rounded-full border-2 border-neutral-300 border-t-transparent"
-      style={{ width: size, height: size, borderTopColor: "transparent", borderColor: `${ACCENT}55`, borderTopWidth: 2 }}
+      className="inline-block animate-spin rounded-full border-2"
+      style={{ width: size, height: size, borderColor: `${ACCENT}55`, borderTopColor: "transparent", borderTopWidth: 2 }}
       aria-hidden
     />
   );
@@ -1306,90 +1293,45 @@ function AuthShell({ theme, children }: { theme: string; children: React.ReactNo
 }
 
 export default function SplitArcApp() {
-  const { ready, authenticated, user, logout } = usePrivy();
-  const { login } = useLogin();
-  const { initOAuth } = useLoginWithOAuth();
-  const { createWallet } = useCreateWallet();
-  const [creatingWallet, setCreatingWallet] = useState(false);
-
-  const { wallets, ready: walletsReady } = useWallets();
+  const { address, isConnected, status, chainId, connector } = useAccount();
+  const { connect, connectors, isPending: connecting, error: connectError } = useConnect();
+  const { disconnect } = useDisconnect();
+  const { switchChain } = useSwitchChain();
   const { theme, toggleTheme } = useAppTheme();
+
+  const [mounted, setMounted] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [customName, setCustomName] = useState("");
-  const [loginNotice, setLoginNotice] = useState<string | null>(null);
-  const [linkedExternal, setLinkedExternal] = useState(false);
-  const [walletError, setWalletError] = useState<string | null>(null);
-  const [walletCheckTimedOut, setWalletCheckTimedOut] = useState(false);
 
-  const { connectWallet } = useConnectWallet({
-    onSuccess: () => {
-      setLinkedExternal(true);
-      setWalletError(null);
-      if (user?.id) window.localStorage.setItem(`splitarc:${user.id}:linked-external`, "1");
-    },
-  });
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    if (!user?.id) return;
-    setCustomName(window.localStorage.getItem(`splitarc:${user.id}:display-name`) ?? "");
-    setLinkedExternal(window.localStorage.getItem(`splitarc:${user.id}:linked-external`) === "1");
-  }, [user?.id]);
-
-  const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
-  const externalWallet = wallets.find((w) => w.walletClientType !== "privy");
-  // Email / Google accounts never silently adopt an already-connected browser wallet.
-  const isSocialAccount = !!(user?.email || user?.google);
-  const wallet = isSocialAccount
-    ? embeddedWallet ?? (linkedExternal ? externalWallet : undefined)
-    : externalWallet ?? embeddedWallet;
-  const address = wallet?.address;
-  const identityName = user?.google?.name || user?.google?.email || user?.email?.address || "there";
-  const fallbackName = identityName.includes("@") ? identityName.split("@")[0] : identityName;
-  const displayName = customName || fallbackName;
-
-  useEffect(() => {
-    if (!authenticated || wallet || walletsReady) {
-      setWalletCheckTimedOut(false);
+    if (!address) {
+      setCustomName("");
       return;
     }
+    setCustomName(window.localStorage.getItem(`splitarc:${address.toLowerCase()}:display-name`) ?? "");
+  }, [address]);
 
-    const timeout = window.setTimeout(() => setWalletCheckTimedOut(true), 8_000);
-    return () => window.clearTimeout(timeout);
-  }, [authenticated, wallet, walletsReady]);
+  const wallet: WalletShim | undefined = useMemo(() => {
+    if (!isConnected || !connector) return undefined;
+    return {
+      chainId: `eip155:${chainId ?? ARC_TESTNET_ID}`,
+      switchChain: (id: number) => switchChain({ chainId: id }),
+      getEthereumProvider: async () => (await connector.getProvider()) as EIP1193Provider,
+    };
+  }, [isConnected, connector, chainId, switchChain]);
 
-  const guardedLogin = () => {
-    setLoginNotice(null);
-    login({ loginMethods: ["email"] });
+  const fallbackName = address ? truncate(address) : "there";
+  const displayName = customName || fallbackName;
+
+  const handleConnect = () => {
+    const preferred = connectors.find((c) => c.type === "injected") ?? connectors[0];
+    connect({ connector: preferred ?? injected() });
   };
 
-  const startGoogleLogin = async () => {
-    setLoginNotice(null);
-    try {
-      await initOAuth({ provider: "google" });
-    } catch {
-      setLoginNotice("Google sign-in could not be started. Please try again.");
-    }
-  };
-
-  const startCreateWallet = async () => {
-    setWalletError(null);
-    setCreatingWallet(true);
-    try {
-      await Promise.race([
-        createWallet(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 30_000)),
-      ]);
-    } catch {
-      setWalletError("Wallet creation is taking too long. Please try connecting an existing wallet instead.");
-    } finally {
-      setCreatingWallet(false);
-    }
-  };
-
-
-
-
-  if (!ready) {
+  // Initial hydration / reconnect — show branded loader instead of a white flash.
+  if (!mounted || status === "connecting" || status === "reconnecting") {
     return (
       <AuthShell theme={theme}>
         <div className="mx-auto w-fit"><Logo /></div>
@@ -1401,106 +1343,86 @@ export default function SplitArcApp() {
     );
   }
 
-  if (!authenticated) {
+  if (!isConnected || !address) {
     return (
       <AuthShell theme={theme}>
         <div className="mx-auto w-fit"><Logo /></div>
         <h1 className="mt-6 text-3xl font-bold text-neutral-900 dark:text-white">Welcome to SplitArc</h1>
         <p className="mt-2 text-neutral-500 dark:text-neutral-400">Split USDC to anyone, instantly</p>
-        {loginNotice && (
-          <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">{loginNotice}</p>
+        <p className="mt-1 text-xs text-neutral-400">Works with MetaMask, Rabby or any injected EVM wallet</p>
+        {connectError && (
+          <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">{connectError.message}</p>
         )}
-        <div className="mt-8 space-y-3">
-          <button type="button" onClick={guardedLogin} className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98]" style={{ backgroundColor: ACCENT }}>Continue with email</button>
-          <button type="button" onClick={startGoogleLogin} className="w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 font-semibold text-neutral-900 transition active:scale-[.98] dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">Continue with Google</button>
-          <button type="button" onClick={() => { setLoginNotice(null); login({ loginMethods: ["wallet"] }); }} className="w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 font-semibold text-neutral-900 transition active:scale-[.98] dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">Connect Wallet</button>
+        <div className="mt-8">
+          <button
+            type="button"
+            onClick={handleConnect}
+            disabled={connecting}
+            className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98] disabled:opacity-60"
+            style={{ backgroundColor: ACCENT }}
+          >
+            {connecting ? "Connecting…" : "Connect Wallet"}
+          </button>
         </div>
-
-        <button type="button" onClick={() => { clearPrivySession(); window.location.reload(); }} className="mt-6 text-xs font-semibold underline" style={{ color: ACCENT }}>
-          Having trouble? Click here to reset
-        </button>
+        <Link to="/" className="mt-6 inline-block text-xs font-semibold underline" style={{ color: ACCENT }}>
+          Back to home
+        </Link>
       </AuthShell>
     );
   }
-
-  if (!wallet && !walletsReady && !walletCheckTimedOut) {
-    return (
-      <AuthShell theme={theme}>
-        <div className="mx-auto w-fit"><Logo /></div>
-        <div className="mt-6 flex flex-col items-center gap-3">
-          <Spinner />
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">Checking your wallet…</p>
-        </div>
-      </AuthShell>
-    );
-  }
-
-  if (!wallet && !walletsReady && walletCheckTimedOut) {
-    return (
-      <AuthShell theme={theme}>
-        <div className="mx-auto w-fit"><Logo /></div>
-        <h1 className="mt-6 text-2xl font-bold text-neutral-900 dark:text-white">Wallet check timed out</h1>
-        <p className="mt-3 text-sm text-neutral-600 dark:text-neutral-400">
-          Your sign-in completed, but Privy could not finish loading the wallet connection.
-        </p>
-        <div className="mt-8 space-y-3">
-          <button type="button" onClick={() => window.location.reload()} className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98]" style={{ backgroundColor: ACCENT }}>
-            Try again
-          </button>
-          <button type="button" onClick={async () => { await logout(); clearPrivySession(); window.location.reload(); }} className="w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 font-semibold text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">
-            Reset sign-in
-          </button>
-        </div>
-      </AuthShell>
-    );
-  }
-
-  if (!wallet) {
-    const email = user?.email?.address || user?.google?.email;
-    return (
-      <AuthShell theme={theme}>
-        <div className="mx-auto w-fit"><Logo /></div>
-        <h1 className="mt-6 text-2xl font-bold text-neutral-900 dark:text-white">
-          {isSocialAccount ? "One more step" : "Wallet needed"}
-        </h1>
-        <p className="mt-3 text-sm text-neutral-600 dark:text-neutral-400">
-          {isSocialAccount
-            ? `You're signed in as ${email ?? displayName}. To send splits you need a wallet. You can either connect an existing wallet or we'll create one for you.`
-            : "Please connect a wallet like MetaMask to continue."}
-        </p>
-        {walletError && (
-          <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">{walletError}</p>
-        )}
-        <div className="mt-8 space-y-3">
-          <button type="button" onClick={() => connectWallet()} className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98]" style={{ backgroundColor: ACCENT }}>
-            Connect existing wallet
-          </button>
-          <button type="button" disabled={creatingWallet} onClick={startCreateWallet} className="w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 font-semibold text-neutral-900 transition active:scale-[.98] disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">
-            {creatingWallet ? "Creating your wallet…" : "Create a new wallet"}
-          </button>
-
-
-          <button type="button" onClick={() => logout()} className="w-full rounded-2xl px-5 py-3 text-sm font-semibold text-red-600">
-            Logout
-          </button>
-        </div>
-      </AuthShell>
-    );
-  }
-
-
 
   return (
     <div className={theme === "dark" ? "dark" : ""}>
-        <div className="splitarc-app min-h-screen px-5 py-8 flex justify-center bg-[#F5F5F5] dark:bg-[#0A0A0A]">
-          <div className="w-full max-w-[480px]">
-            <Header actions={<><button type="button" onClick={toggleTheme} className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" aria-label="Toggle color theme">{theme === "light" ? <MoonIcon /> : <SunIcon />}</button><div className="relative"><button type="button" onClick={() => setProfileOpen((open) => !open)} className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" aria-label="Open profile"><ProfileIcon /></button>{profileOpen && <div className="absolute right-0 top-10 z-30 w-72 rounded-2xl border border-neutral-200 bg-white p-4 shadow-xl dark:border-neutral-700 dark:bg-neutral-900"><div className="font-semibold text-neutral-900 dark:text-white truncate">{customName || identityName}</div><div className="mt-3 flex items-center justify-between rounded-lg bg-neutral-50 px-3 py-2 dark:bg-neutral-800"><span className="font-mono text-xs text-neutral-600 dark:text-neutral-300">{truncate(address)}</span><button type="button" onClick={() => navigator.clipboard.writeText(address ?? "")} className="text-xs font-semibold" style={{ color: ACCENT }}>Copy</button></div><button type="button" onClick={() => { const next = window.prompt("Enter a display name", customName || fallbackName); if (next === null || !user?.id) return; const clean = next.trim(); setCustomName(clean); if (clean) window.localStorage.setItem(`splitarc:${user.id}:display-name`, clean); else window.localStorage.removeItem(`splitarc:${user.id}:display-name`); }} className="mt-3 w-full rounded-lg border border-neutral-200 px-3 py-2 text-left text-sm font-medium text-neutral-700 dark:border-neutral-700 dark:text-neutral-200">Edit display name</button><button type="button" onClick={() => logout()} className="mt-2 w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-600 hover:bg-red-50">Logout</button></div>}</div></>} />
-            <App address={address} wallet={wallet} displayName={displayName} />
-            <p className="mt-8 text-center text-xs text-neutral-400">
-              Arc Testnet · Chain ID {arcTestnet.id}
-            </p>
-          </div>
+      <div className="splitarc-app min-h-screen px-5 py-8 flex justify-center bg-[#F5F5F5] dark:bg-[#0A0A0A]">
+        <div className="w-full max-w-[480px]">
+          <Header
+            actions={
+              <>
+                <button type="button" onClick={toggleTheme} className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" aria-label="Toggle color theme">
+                  {theme === "light" ? <MoonIcon /> : <SunIcon />}
+                </button>
+                <div className="relative">
+                  <button type="button" onClick={() => setProfileOpen((open) => !open)} className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" aria-label="Open profile">
+                    <ProfileIcon />
+                  </button>
+                  {profileOpen && (
+                    <div className="absolute right-0 top-10 z-30 w-72 rounded-2xl border border-neutral-200 bg-white p-4 shadow-xl dark:border-neutral-700 dark:bg-neutral-900">
+                      <div className="font-semibold text-neutral-900 dark:text-white truncate">{displayName}</div>
+                      <div className="mt-3 flex items-center justify-between rounded-lg bg-neutral-50 px-3 py-2 dark:bg-neutral-800">
+                        <span className="font-mono text-xs text-neutral-600 dark:text-neutral-300">{truncate(address)}</span>
+                        <button type="button" onClick={() => navigator.clipboard.writeText(address)} className="text-xs font-semibold" style={{ color: ACCENT }}>Copy</button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = window.prompt("Enter a display name", customName || fallbackName);
+                          if (next === null) return;
+                          const clean = next.trim();
+                          setCustomName(clean);
+                          const key = `splitarc:${address.toLowerCase()}:display-name`;
+                          if (clean) window.localStorage.setItem(key, clean);
+                          else window.localStorage.removeItem(key);
+                        }}
+                        className="mt-3 w-full rounded-lg border border-neutral-200 px-3 py-2 text-left text-sm font-medium text-neutral-700 dark:border-neutral-700 dark:text-neutral-200"
+                      >
+                        Edit display name
+                      </button>
+                      <button type="button" onClick={() => { setProfileOpen(false); disconnect(); }} className="mt-2 w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-600 hover:bg-red-50">
+                        Disconnect wallet
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            }
+          />
+          <App address={address} wallet={wallet} displayName={displayName} />
+          <p className="mt-8 text-center text-xs text-neutral-400">
+            Arc Testnet · Chain ID {arcTestnet.id}
+          </p>
         </div>
+      </div>
     </div>
   );
 }
+
