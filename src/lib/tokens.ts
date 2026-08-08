@@ -1,4 +1,4 @@
-export type TokenKey = "usdc" | "eurc" | "cirbtc";
+export type TokenKey = "usdc" | "eurc";
 
 export type TokenInfo = {
   key: TokenKey;
@@ -27,21 +27,12 @@ export const TOKENS: Record<TokenKey, TokenInfo> = {
     key: "eurc",
     symbol: "EURC",
     name: "Euro Coin",
-    address: "0x3700000000000000000000000000000000000000",
+    address: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a",
     decimals: 6,
     icon: "€",
     color: "#1D9E75",
     faucet: "https://faucet.circle.com",
   },
-  cirbtc: {
-    key: "cirbtc",
-    symbol: "cirBTC",
-    name: "Circle Bitcoin",
-    address: "0x3800000000000000000000000000000000000000",
-    decimals: 8,
-    icon: "₿",
-    color: "#F7931A",
-  },
 };
 
-export const TOKEN_LIST: TokenInfo[] = [TOKENS.usdc, TOKENS.eurc, TOKENS.cirbtc];
+export const TOKEN_LIST: TokenInfo[] = [TOKENS.usdc, TOKENS.eurc];

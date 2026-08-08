@@ -1,6 +1,6 @@
-import { PrivyProvider } from "@privy-io/react-auth";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { arcTestnet } from "@/lib/arc";
+import { WagmiProvider } from "wagmi";
+import { getWagmiConfig } from "@/lib/wagmi";
 
 type AppTheme = "light" | "dark";
 
@@ -18,7 +18,7 @@ export function useAppTheme() {
   return useContext(ThemeContext);
 }
 
-export function PrivyAppProvider({ children }: { children: ReactNode }) {
+export function AppProviders({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<AppTheme>("light");
 
   useEffect(() => {
@@ -40,22 +40,8 @@ export function PrivyAppProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <PrivyProvider
-      appId="cmseiknvo00p80ckzbvlm3a1u"
-      config={{
-        loginMethods: ["email", "google", "wallet"],
-        appearance: {
-          theme,
-          accentColor: "#1D9E75",
-        },
-        embeddedWallets: {
-          ethereum: { createOnLogin: "users-without-wallets" },
-        },
-        supportedChains: [arcTestnet],
-        defaultChain: arcTestnet,
-      }}
-    >
+    <WagmiProvider config={getWagmiConfig()}>
       <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
-    </PrivyProvider>
+    </WagmiProvider>
   );
 }
