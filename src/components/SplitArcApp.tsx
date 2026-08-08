@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  useConnectWallet,
-  useCreateWallet,
-  useLogin,
-  useLoginWithOAuth,
-  usePrivy,
-  useWallets,
-} from "@privy-io/react-auth";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { createPublicClient, createWalletClient, custom, erc20Abi, formatUnits, http, parseUnits, isAddress } from "viem";
-import { useAppTheme } from "@/components/PrivyAppProvider";
+import { createPublicClient, createWalletClient, custom, erc20Abi, formatUnits, http, parseUnits, isAddress, type EIP1193Provider } from "viem";
+import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
+import { injected } from "wagmi/connectors";
+import { useAppTheme } from "@/components/AppProviders";
+
+export type WalletShim = {
+  chainId: string;
+  switchChain: (id: number) => void;
+  getEthereumProvider: () => Promise<EIP1193Provider>;
+};
+
 
 import {
   ARC_TESTNET_ID,
