@@ -10,7 +10,7 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
-import { PrivyAppProvider } from "@/components/PrivyAppProvider";
+import { AppProviders } from "@/components/AppProviders";
 
 function NotFoundComponent() {
   return (
@@ -119,9 +119,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <PrivyAppProvider>
+      <AppProviders>
         <Outlet />
-      </PrivyAppProvider>
+      </AppProviders>
     </QueryClientProvider>
   );
 }
