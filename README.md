@@ -1,67 +1,77 @@
-# Arc Split Pay
+# SplitArc
 
-Build a React web app called SplitArc — a USDC split payment app that runs on Arc Testnet (a Layer-1 blockchain by Circle). The app lets a user connect their wallet, enter a USDC amount, add recipient wallet addresses, choose equal split or custom percentages, and send to all recipients in one go.
-Tech stack:
+Split USDC to anyone, instantly. Built on Arc Testnet.
 
-React + Vite
-wagmi v2 + viem for wallet connection and transactions
-@circle-fin/app-kit and @circle-fin/adapter-viem-v2 for sending USDC
-Tailwind CSS for styling
+## What is SplitArc?
 
-Arc Testnet config (add this as a custom chain in wagmi):
+SplitArc is a stablecoin-native split payment app built on Arc — 
+Circle's stablecoin-native L1 blockchain. One transaction fans out 
+USDC or EURC to multiple recipients simultaneously, with every split 
+named and logged permanently onchain.
 
-Chain name: Arc Testnet
-Chain ID: 5042002
-RPC URL: https://rpc.testnet.arc.network
-Currency symbol: USDC
-Block explorer: https://testnet.arcscan.app
-USDC contract: 0x3600000000000000000000000000000000000000 (ERC-20, 6 decimals)
+## Features
 
-App features:
+- Split USDC or EURC to up to 20 recipients in one transaction
+- Name your splits — Team Dinner, Salaries, Family
+- Address book — save contacts with friendly names, no more copy-pasting addresses
+- Split history — every past split saved, repeat with one click
+- Templates — save recurring split configurations for reuse
+- Multi-stablecoin — USDC and EURC supported natively
+- Built-in faucet link for testnet tokens
+- Dark and light mode
 
-Wallet bar at top — shows connected wallet address (truncated) and USDC balance. "Connect Wallet" button if not connected. Use wagmi's useConnect and useBalance hooks.
-Amount input — user types total USDC amount to send. Show "USDC" badge next to the input.
-Split mode toggle — two buttons: "Equal split" and "Custom %". Default to Equal split.
-Recipients section — user adds up to 10 wallet addresses. Each row has: address input field, calculated amount (equal split) or percentage input (custom mode), and a remove button. Start with 2 empty rows. "Add recipient" button to add more.
-Summary card — shows: total amount, number of recipients, amount per wallet (equal) or breakdown (custom), estimated gas fee (~0.01 USDC), and network name (Arc Testnet).
-Split & Send button — when clicked, loops through recipients and calls kit.send() from @circle-fin/app-kit for each address with the correct USDC amount. Use Arc_Testnet as the chain param. Show a loading state while sending.
-Success screen — after all sends complete, show each recipient address, amount sent, and a link to the transaction on https://testnet.arcscan.app/tx/[txHash].
-Error handling — show clear error messages if wallet not connected, amount is empty, addresses are invalid, or transaction fails.
+## Smart Contract
 
-Design:
+Deployed and verified on Arc Testnet
 
-Clean, minimal, white card-based UI
-Green accent color (#1D9E75) for primary actions and USDC amounts
-"Arc Testnet" badge in the header so users know they're on testnet
-Mobile-friendly, max width 480px centered
-No dark mode needed for now
+| Item | Detail |
+|------|--------|
+| Contract Address | `0xe838875225a7896c75Bab8cE169Ad657fF317bf7` |
+| Network | Arc Testnet (Chain ID: 5042002) |
+| Verification | Verified on Sourcify |
+| Explorer | [View on ArcScan](https://testnet.arcscan.app/address/0xe838875225a7896c75Bab8cE169Ad657fF317bf7) |
 
-Important notes:
+## Tech Stack
 
-USDC on Arc uses 6 decimals on the ERC-20 interface
-Gas is also paid in USDC on Arc (not ETH)
-App Kit's kit.send() handles the actual transfer — pass { from: { adapter, chain: "Arc_Testnet" }, to: recipientAddress, amount: "X.XX", token: "USDC" }
-Use createViemAdapterFromPrivateKey or the wagmi adapter depending on what App Kit supports for browser wallets
+- **Blockchain:** Arc Testnet
+- **Smart Contract:** Solidity 0.8.20
+- **Frontend:** React + Vite + Tailwind CSS
+- **Wallet:** wagmi v2 + viem
+- **Deployment:** Lovable
+- **Contract Verification:** Sourcify
 
-This project was built with [Lovable](https://lovable.dev).
+## Token Addresses (Arc Testnet)
 
-**Live app**: https://splitarc.lovable.app
+| Token | Address | Decimals |
+|-------|---------|----------|
+| USDC | `0x3600000000000000000000000000000000000000` | 6 |
+| EURC | `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` | 6 |
 
-## Build with Lovable
+## How It Works
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/d5ac7572-76f6-4c36-a066-a8e03b7b4977).
+1. Connect your EVM wallet (MetaMask, Rabby)
+2. Enter a split name and total amount
+3. Add recipients from your address book or paste addresses
+4. Choose equal split or custom percentages
+5. Hit Split & Send — one transaction, everyone gets paid
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+## Roadmap
 
-## Development
+- Cross-chain splits via Circle CCTP
+- Recurring scheduled splits via Chainlink Automation
+- Social/email login via Privy
+- Address book sync across devices
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+## Live App
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
+[splitarc.lovable.app](https://splitarc.lovable.app)
+
+## Built With
+
+- [Arc](https://arc.io) — stablecoin-native L1 by Circle
+- [Circle](https://circle.com) — USDC and EURC infrastructure
+- [Lovable](https://lovable.dev) — frontend development
+
+## License
+
+MIT
