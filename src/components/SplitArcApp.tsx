@@ -4,6 +4,7 @@ import { createPublicClient, createWalletClient, custom, erc20Abi, formatUnits, 
 import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { useAppTheme } from "@/components/AppProviders";
+import { Send as SendLucide, Clock as ClockLucide, Users as UsersLucide } from "lucide-react";
 
 export type WalletShim = {
   chainId: string;
@@ -163,7 +164,7 @@ function TokenSelect({ value, onChange }: { value: TokenKey; onChange: (t: Token
         value={value}
         onChange={(e) => onChange(e.target.value as TokenKey)}
         aria-label="Select token"
-        className="appearance-none text-sm font-bold pl-9 pr-7 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-800 outline-none cursor-pointer hover:bg-neutral-100"
+        className="appearance-none text-base font-bold pl-11 pr-9 py-3 min-h-[48px] min-w-[120px] rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-800 outline-none cursor-pointer hover:bg-neutral-100 touch-manipulation"
       >
         {TOKEN_LIST.map((t) => (
           <option key={t.key} value={t.key}>
@@ -171,10 +172,10 @@ function TokenSelect({ value, onChange }: { value: TokenKey; onChange: (t: Token
           </option>
         ))}
       </select>
-      <span className="absolute left-2 pointer-events-none">
-        <TokenIcon token={token} size={20} />
+      <span className="absolute left-3 pointer-events-none">
+        <TokenIcon token={token} size={22} />
       </span>
-      <span className="absolute right-2 text-neutral-400 text-[10px] pointer-events-none">▾</span>
+      <span className="absolute right-3 text-neutral-400 text-xs pointer-events-none">▾</span>
     </div>
   );
 }
