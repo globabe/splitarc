@@ -280,10 +280,10 @@ function WalletBar({ address, wallet, displayName, token }: { address?: string; 
 /* ---------------- Tab bar ---------------- */
 
 function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
-  const tabs: { key: Tab; label: string; icon: string }[] = [
-    { key: "new", label: "New Split", icon: "💸" },
-    { key: "history", label: "History", icon: "🕐" },
-    { key: "contacts", label: "Contacts", icon: "👥" },
+  const tabs: { key: Tab; label: string; Icon: typeof SendLucide }[] = [
+    { key: "new", label: "New Split", Icon: SendLucide },
+    { key: "history", label: "History", Icon: ClockLucide },
+    { key: "contacts", label: "Contacts", Icon: UsersLucide },
   ];
   return (
     <div className="grid grid-cols-3 gap-1.5 bg-neutral-100 p-1 rounded-2xl">
