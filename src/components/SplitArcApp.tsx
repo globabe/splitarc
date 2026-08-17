@@ -296,7 +296,7 @@ function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
             tab === t.key ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"
           }`}
         >
-          <span>{t.icon}</span>
+          <t.Icon size={16} strokeWidth={2.2} />
           <span>{t.label}</span>
         </button>
       ))}
