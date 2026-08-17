@@ -515,36 +515,69 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Walle
     const addresses = validRecipients.map((r) => r.address.trim() as `0x${string}`);
 
     try {
+      if (!wallet) {
+        setError("Connect your wallet to continue.");
+        return;
+      }
       const provider = await wallet.getEthereumProvider();
       const walletClient = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
       const account = address as `0x${string}`;
-      setSendStatus("approving");
-      const approveHash = await walletClient.writeContract({
-        account,
-        address: token.address,
-        abi: erc20Abi,
-        functionName: "approve",
-        args: [SPLITARC_ADDRESS, totalWei],
-        chain: arcTestnet,
-      });
-      await publicClient.waitForTransactionReceipt({ hash: approveHash });
 
-      setSendStatus("splitting");
-      const splitHash = await walletClient.writeContract({
-        account,
-        address: SPLITARC_ADDRESS,
-        abi: SPLITARC_ABI,
-        functionName: "split",
-        args: [splitName.trim(), addresses, perRecipientWei],
-        chain: arcTestnet,
-      });
-      await publicClient.waitForTransactionReceipt({ hash: splitHash });
+      let recs: SendResult[];
+      let splitHash: `0x${string}`;
 
-      const recs: SendResult[] = validRecipients.map((r, i) => ({
-        address: r.address.trim(),
-        amount: formatUnits(perRecipientWei[i], token.decimals),
-        txHash: splitHash,
-      }));
+      if (token.address.toLowerCase() === SPLIT_CONTRACT_TOKEN.toLowerCase()) {
+        // Splitter contract only supports its configured token (USDC).
+        setSendStatus("approving");
+        const approveHash = await walletClient.writeContract({
+          account,
+          address: token.address,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [SPLITARC_ADDRESS, totalWei],
+          chain: arcTestnet,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: approveHash });
+
+        setSendStatus("splitting");
+        splitHash = await walletClient.writeContract({
+          account,
+          address: SPLITARC_ADDRESS,
+          abi: SPLITARC_ABI,
+          functionName: "split",
+          args: [splitName.trim(), addresses, perRecipientWei],
+          chain: arcTestnet,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: splitHash });
+
+        recs = validRecipients.map((r, i) => ({
+          address: r.address.trim(),
+          amount: formatUnits(perRecipientWei[i], token.decimals),
+          txHash: splitHash,
+        }));
+      } else {
+        // Other tokens (e.g. EURC): direct ERC-20 transfers with the selected token.
+        setSendStatus("splitting");
+        recs = [];
+        for (let i = 0; i < addresses.length; i++) {
+          const hash = await walletClient.writeContract({
+            account,
+            address: token.address,
+            abi: erc20Abi,
+            functionName: "transfer",
+            args: [addresses[i], perRecipientWei[i]],
+            chain: arcTestnet,
+          });
+          await publicClient.waitForTransactionReceipt({ hash });
+          recs.push({
+            address: addresses[i],
+            amount: formatUnits(perRecipientWei[i], token.decimals),
+            txHash: hash,
+          });
+        }
+        splitHash = recs[recs.length - 1].txHash as `0x${string}`;
+      }
+
       setResults(recs);
       setLastTxHash(splitHash);
 
