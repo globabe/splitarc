@@ -4,6 +4,7 @@ import { createPublicClient, createWalletClient, custom, erc20Abi, formatUnits, 
 import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { useAppTheme } from "@/components/AppProviders";
+import { Send as SendLucide, Clock as ClockLucide, Users as UsersLucide } from "lucide-react";
 
 export type WalletShim = {
   chainId: string;
@@ -163,7 +164,7 @@ function TokenSelect({ value, onChange }: { value: TokenKey; onChange: (t: Token
         value={value}
         onChange={(e) => onChange(e.target.value as TokenKey)}
         aria-label="Select token"
-        className="appearance-none text-sm font-bold pl-9 pr-7 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-800 outline-none cursor-pointer hover:bg-neutral-100"
+        className="appearance-none text-base font-bold pl-11 pr-9 py-3 min-h-[48px] min-w-[120px] rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-800 outline-none cursor-pointer hover:bg-neutral-100 touch-manipulation"
       >
         {TOKEN_LIST.map((t) => (
           <option key={t.key} value={t.key}>
@@ -171,10 +172,10 @@ function TokenSelect({ value, onChange }: { value: TokenKey; onChange: (t: Token
           </option>
         ))}
       </select>
-      <span className="absolute left-2 pointer-events-none">
-        <TokenIcon token={token} size={20} />
+      <span className="absolute left-3 pointer-events-none">
+        <TokenIcon token={token} size={22} />
       </span>
-      <span className="absolute right-2 text-neutral-400 text-[10px] pointer-events-none">▾</span>
+      <span className="absolute right-3 text-neutral-400 text-xs pointer-events-none">▾</span>
     </div>
   );
 }
@@ -279,10 +280,10 @@ function WalletBar({ address, wallet, displayName, token }: { address?: string; 
 /* ---------------- Tab bar ---------------- */
 
 function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
-  const tabs: { key: Tab; label: string; icon: string }[] = [
-    { key: "new", label: "New Split", icon: "💸" },
-    { key: "history", label: "History", icon: "🕐" },
-    { key: "contacts", label: "Contacts", icon: "👥" },
+  const tabs: { key: Tab; label: string; Icon: typeof SendLucide }[] = [
+    { key: "new", label: "New Split", Icon: SendLucide },
+    { key: "history", label: "History", Icon: ClockLucide },
+    { key: "contacts", label: "Contacts", Icon: UsersLucide },
   ];
   return (
     <div className="grid grid-cols-3 gap-1.5 bg-neutral-100 p-1 rounded-2xl">
@@ -295,7 +296,7 @@ function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
             tab === t.key ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"
           }`}
         >
-          <span>{t.icon}</span>
+          <t.Icon size={16} strokeWidth={2.2} />
           <span>{t.label}</span>
         </button>
       ))}
@@ -514,36 +515,69 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Walle
     const addresses = validRecipients.map((r) => r.address.trim() as `0x${string}`);
 
     try {
+      if (!wallet) {
+        setError("Connect your wallet to continue.");
+        return;
+      }
       const provider = await wallet.getEthereumProvider();
       const walletClient = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
       const account = address as `0x${string}`;
-      setSendStatus("approving");
-      const approveHash = await walletClient.writeContract({
-        account,
-        address: token.address,
-        abi: erc20Abi,
-        functionName: "approve",
-        args: [SPLITARC_ADDRESS, totalWei],
-        chain: arcTestnet,
-      });
-      await publicClient.waitForTransactionReceipt({ hash: approveHash });
 
-      setSendStatus("splitting");
-      const splitHash = await walletClient.writeContract({
-        account,
-        address: SPLITARC_ADDRESS,
-        abi: SPLITARC_ABI,
-        functionName: "split",
-        args: [splitName.trim(), addresses, perRecipientWei],
-        chain: arcTestnet,
-      });
-      await publicClient.waitForTransactionReceipt({ hash: splitHash });
+      let recs: SendResult[];
+      let splitHash: `0x${string}`;
 
-      const recs: SendResult[] = validRecipients.map((r, i) => ({
-        address: r.address.trim(),
-        amount: formatUnits(perRecipientWei[i], token.decimals),
-        txHash: splitHash,
-      }));
+      if (token.address.toLowerCase() === SPLIT_CONTRACT_TOKEN.toLowerCase()) {
+        // Splitter contract only supports its configured token (USDC).
+        setSendStatus("approving");
+        const approveHash = await walletClient.writeContract({
+          account,
+          address: token.address,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [SPLITARC_ADDRESS, totalWei],
+          chain: arcTestnet,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: approveHash });
+
+        setSendStatus("splitting");
+        splitHash = await walletClient.writeContract({
+          account,
+          address: SPLITARC_ADDRESS,
+          abi: SPLITARC_ABI,
+          functionName: "split",
+          args: [splitName.trim(), addresses, perRecipientWei],
+          chain: arcTestnet,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: splitHash });
+
+        recs = validRecipients.map((r, i) => ({
+          address: r.address.trim(),
+          amount: formatUnits(perRecipientWei[i], token.decimals),
+          txHash: splitHash,
+        }));
+      } else {
+        // Other tokens (e.g. EURC): direct ERC-20 transfers with the selected token.
+        setSendStatus("splitting");
+        recs = [];
+        for (let i = 0; i < addresses.length; i++) {
+          const hash = await walletClient.writeContract({
+            account,
+            address: token.address,
+            abi: erc20Abi,
+            functionName: "transfer",
+            args: [addresses[i], perRecipientWei[i]],
+            chain: arcTestnet,
+          });
+          await publicClient.waitForTransactionReceipt({ hash });
+          recs.push({
+            address: addresses[i],
+            amount: formatUnits(perRecipientWei[i], token.decimals),
+            txHash: hash,
+          });
+        }
+        splitHash = recs[recs.length - 1].txHash as `0x${string}`;
+      }
+
       setResults(recs);
       setLastTxHash(splitHash);
 
