@@ -212,7 +212,7 @@ function Header({ children, actions }: { children?: React.ReactNode; actions?: R
   );
 }
 
-function WalletBar({ address, wallet, displayName, token }: { address?: string; wallet: WalletShim | undefined; displayName: string; token: TokenInfo }) {
+function WalletBar({ address, wallet, displayName, token, onConnect, connecting }: { address?: string; wallet: WalletShim | undefined; displayName: string; token: TokenInfo; onConnect: () => void; connecting: boolean }) {
   const isConnected = !!address;
   const chainId = wallet?.chainId;
   const onWrongChain = isConnected && chainId !== `eip155:${ARC_TESTNET_ID}`;
@@ -238,12 +238,26 @@ function WalletBar({ address, wallet, displayName, token }: { address?: string; 
           <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: ACCENT }} />
         </div>
         <div className="flex flex-col min-w-0">
-          <span className="text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">Welcome back, {displayName}</span>
-          <span className="font-mono text-sm text-neutral-900 truncate">{truncate(address)}</span>
+          <span className="text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">
+            {isConnected ? `Welcome back, ${displayName}` : "Not connected"}
+          </span>
+          <span className="font-mono text-sm text-neutral-900 truncate">
+            {isConnected ? truncate(address) : "Guest mode"}
+          </span>
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        {onWrongChain ? (
+        {!isConnected ? (
+          <button
+            type="button"
+            onClick={onConnect}
+            disabled={connecting}
+            className="text-sm font-semibold px-4 py-2 rounded-xl text-white transition active:scale-[.98] disabled:opacity-60"
+            style={{ backgroundColor: ACCENT }}
+          >
+            {connecting ? "Connecting…" : "Connect Wallet"}
+          </button>
+        ) : onWrongChain ? (
           <button
             type="button"
             onClick={() => wallet?.switchChain(ARC_TESTNET_ID)}
