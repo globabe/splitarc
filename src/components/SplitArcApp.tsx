@@ -17,6 +17,7 @@ import {
   ARC_TESTNET_ID,
   SPLITARC_ADDRESS,
   SPLITARC_ABI,
+  SPLIT_CONTRACT_TOKEN,
   EXPLORER_URL,
   arcTestnet,
 } from "@/lib/arc";
@@ -211,7 +212,7 @@ function Header({ children, actions }: { children?: React.ReactNode; actions?: R
   );
 }
 
-function WalletBar({ address, wallet, displayName, token }: { address?: string; wallet: WalletShim | undefined; displayName: string; token: TokenInfo }) {
+function WalletBar({ address, wallet, displayName, token, onConnect, connecting }: { address?: string; wallet: WalletShim | undefined; displayName: string; token: TokenInfo; onConnect: () => void; connecting: boolean }) {
   const isConnected = !!address;
   const chainId = wallet?.chainId;
   const onWrongChain = isConnected && chainId !== `eip155:${ARC_TESTNET_ID}`;
@@ -237,12 +238,26 @@ function WalletBar({ address, wallet, displayName, token }: { address?: string; 
           <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: ACCENT }} />
         </div>
         <div className="flex flex-col min-w-0">
-          <span className="text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">Welcome back, {displayName}</span>
-          <span className="font-mono text-sm text-neutral-900 truncate">{truncate(address)}</span>
+          <span className="text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">
+            {isConnected ? `Welcome back, ${displayName}` : "Not connected"}
+          </span>
+          <span className="font-mono text-sm text-neutral-900 truncate">
+            {isConnected ? truncate(address) : "Guest mode"}
+          </span>
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        {onWrongChain ? (
+        {!isConnected ? (
+          <button
+            type="button"
+            onClick={onConnect}
+            disabled={connecting}
+            className="text-sm font-semibold px-4 py-2 rounded-xl text-white transition active:scale-[.98] disabled:opacity-60"
+            style={{ backgroundColor: ACCENT }}
+          >
+            {connecting ? "Connecting…" : "Connect Wallet"}
+          </button>
+        ) : onWrongChain ? (
           <button
             type="button"
             onClick={() => wallet?.switchChain(ARC_TESTNET_ID)}
@@ -367,7 +382,7 @@ type Prefill = {
   recipients: PrefillRecipient[];
 };
 
-function App({ address, wallet, displayName }: { address?: string; wallet: WalletShim | undefined; displayName: string }) {
+function App({ address, wallet, displayName, onConnect, connecting }: { address?: string; wallet: WalletShim | undefined; displayName: string; onConnect: () => void; connecting: boolean }) {
   const isConnected = !!address && !!wallet;
   const chainId = wallet?.chainId;
   const publicClient = useMemo(() => createPublicClient({ chain: arcTestnet, transport: http() }), []);
@@ -705,7 +720,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Walle
 
   return (
     <div className="space-y-5">
-       <WalletBar address={address} wallet={wallet} displayName={displayName} token={token} />
+       <WalletBar address={address} wallet={wallet} displayName={displayName} token={token} onConnect={onConnect} connecting={connecting} />
       <TabBar tab={tab} setTab={setTab} />
 
       {tab === "new" && (
@@ -1027,13 +1042,6 @@ function HistoryPanel({
   onRepeat: (h: HistoryEntry) => void;
   connected: boolean;
 }) {
-  if (!connected) {
-    return (
-      <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-center text-sm text-neutral-500">
-        Connect your wallet to see split history.
-      </div>
-    );
-  }
   if (history.length === 0) {
     return (
       <div className="rounded-2xl border border-neutral-200 bg-white p-8 text-center">
@@ -1141,14 +1149,6 @@ function ContactsPanel({
   const [name, setName] = useState("");
   const [addr, setAddr] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
-
-  if (!connected) {
-    return (
-      <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-center text-sm text-neutral-500">
-        Connect your wallet to manage contacts and templates.
-      </div>
-    );
-  }
 
   function submit() {
     setFormError(null);
@@ -1377,34 +1377,8 @@ export default function SplitArcApp() {
     );
   }
 
-  if (!isConnected || !address) {
-    return (
-      <AuthShell theme={theme}>
-        <div className="mx-auto w-fit"><Logo /></div>
-        <h1 className="mt-6 text-3xl font-bold text-neutral-900 dark:text-white">Welcome to SplitArc</h1>
-        <p className="mt-2 text-neutral-500 dark:text-neutral-400">Split USDC to anyone, instantly</p>
-        <p className="mt-1 text-xs text-neutral-400">Works with MetaMask, Rabby or any injected EVM wallet</p>
-        {connectError && (
-          <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">{connectError.message}</p>
-        )}
-        <div className="mt-8">
-          <button
-            type="button"
-            onClick={handleConnect}
-            disabled={connecting}
-            className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98] disabled:opacity-60"
-            style={{ backgroundColor: ACCENT }}
-          >
-            {connecting ? "Connecting…" : "Connect Wallet"}
-          </button>
-        </div>
-        <Link to="/" className="mt-6 inline-block text-xs font-semibold underline" style={{ color: ACCENT }}>
-          Back to home
-        </Link>
-      </AuthShell>
-    );
-  }
-
+  // Guest/explore mode: the full app renders even without a wallet connected.
+  // Connect prompts appear in the wallet bar and only gate the Split & Send action.
   return (
     <div className={theme === "dark" ? "dark" : ""}>
       <div className="splitarc-app min-h-screen px-5 py-8 flex justify-center bg-[#F5F5F5] dark:bg-[#0A0A0A]">
@@ -1415,6 +1389,7 @@ export default function SplitArcApp() {
                 <button type="button" onClick={toggleTheme} className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" aria-label="Toggle color theme">
                   {theme === "light" ? <MoonIcon /> : <SunIcon />}
                 </button>
+                {isConnected && address && (
                 <div className="relative">
                   <button type="button" onClick={() => setProfileOpen((open) => !open)} className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" aria-label="Open profile">
                     <ProfileIcon />
@@ -1447,10 +1422,11 @@ export default function SplitArcApp() {
                     </div>
                   )}
                 </div>
+                )}
               </>
             }
           />
-          <App address={address} wallet={wallet} displayName={displayName} />
+          <App address={address} wallet={wallet} displayName={displayName} onConnect={handleConnect} connecting={connecting} />
           <p className="mt-8 text-center text-xs text-neutral-400">
             Arc Testnet · Chain ID {arcTestnet.id}
           </p>

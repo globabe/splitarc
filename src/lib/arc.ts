@@ -7,6 +7,9 @@ export const EXPLORER_URL = "https://testnet.arcscan.app";
 
 export const SPLITARC_ADDRESS = "0xe838875225a7896c75Bab8cE169Ad657fF317bf7" as const;
 
+/** Token the deployed SplitArc contract is configured to pull (USDC on Arc Testnet). */
+export const SPLIT_CONTRACT_TOKEN = "0x3600000000000000000000000000000000000000" as const;
+
 export const SPLITARC_ABI = [
   {
     type: "function",
