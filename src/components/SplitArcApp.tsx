@@ -382,7 +382,7 @@ type Prefill = {
   recipients: PrefillRecipient[];
 };
 
-function App({ address, wallet, displayName }: { address?: string; wallet: WalletShim | undefined; displayName: string }) {
+function App({ address, wallet, displayName, onConnect, connecting }: { address?: string; wallet: WalletShim | undefined; displayName: string; onConnect: () => void; connecting: boolean }) {
   const isConnected = !!address && !!wallet;
   const chainId = wallet?.chainId;
   const publicClient = useMemo(() => createPublicClient({ chain: arcTestnet, transport: http() }), []);
@@ -720,7 +720,7 @@ function App({ address, wallet, displayName }: { address?: string; wallet: Walle
 
   return (
     <div className="space-y-5">
-       <WalletBar address={address} wallet={wallet} displayName={displayName} token={token} />
+       <WalletBar address={address} wallet={wallet} displayName={displayName} token={token} onConnect={onConnect} connecting={connecting} />
       <TabBar tab={tab} setTab={setTab} />
 
       {tab === "new" && (
