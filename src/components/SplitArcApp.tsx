@@ -1042,13 +1042,6 @@ function HistoryPanel({
   onRepeat: (h: HistoryEntry) => void;
   connected: boolean;
 }) {
-  if (!connected) {
-    return (
-      <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-center text-sm text-neutral-500">
-        Connect your wallet to see split history.
-      </div>
-    );
-  }
   if (history.length === 0) {
     return (
       <div className="rounded-2xl border border-neutral-200 bg-white p-8 text-center">
@@ -1156,14 +1149,6 @@ function ContactsPanel({
   const [name, setName] = useState("");
   const [addr, setAddr] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
-
-  if (!connected) {
-    return (
-      <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-center text-sm text-neutral-500">
-        Connect your wallet to manage contacts and templates.
-      </div>
-    );
-  }
 
   function submit() {
     setFormError(null);
