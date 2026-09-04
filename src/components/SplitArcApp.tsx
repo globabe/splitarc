@@ -1424,7 +1424,7 @@ export default function SplitArcApp() {
               </>
             }
           />
-          <App address={address} wallet={wallet} displayName={displayName} />
+          <App address={address} wallet={wallet} displayName={displayName} onConnect={handleConnect} connecting={connecting} />
           <p className="mt-8 text-center text-xs text-neutral-400">
             Arc Testnet · Chain ID {arcTestnet.id}
           </p>
