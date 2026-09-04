@@ -17,6 +17,7 @@ import {
   ARC_TESTNET_ID,
   SPLITARC_ADDRESS,
   SPLITARC_ABI,
+  SPLIT_CONTRACT_TOKEN,
   EXPLORER_URL,
   arcTestnet,
 } from "@/lib/arc";
