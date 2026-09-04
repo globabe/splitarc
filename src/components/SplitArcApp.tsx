@@ -1377,34 +1377,8 @@ export default function SplitArcApp() {
     );
   }
 
-  if (!isConnected || !address) {
-    return (
-      <AuthShell theme={theme}>
-        <div className="mx-auto w-fit"><Logo /></div>
-        <h1 className="mt-6 text-3xl font-bold text-neutral-900 dark:text-white">Welcome to SplitArc</h1>
-        <p className="mt-2 text-neutral-500 dark:text-neutral-400">Split USDC to anyone, instantly</p>
-        <p className="mt-1 text-xs text-neutral-400">Works with MetaMask, Rabby or any injected EVM wallet</p>
-        {connectError && (
-          <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">{connectError.message}</p>
-        )}
-        <div className="mt-8">
-          <button
-            type="button"
-            onClick={handleConnect}
-            disabled={connecting}
-            className="w-full rounded-2xl px-5 py-4 font-semibold text-white transition active:scale-[.98] disabled:opacity-60"
-            style={{ backgroundColor: ACCENT }}
-          >
-            {connecting ? "Connecting…" : "Connect Wallet"}
-          </button>
-        </div>
-        <Link to="/" className="mt-6 inline-block text-xs font-semibold underline" style={{ color: ACCENT }}>
-          Back to home
-        </Link>
-      </AuthShell>
-    );
-  }
-
+  // Guest/explore mode: the full app renders even without a wallet connected.
+  // Connect prompts appear in the wallet bar and only gate the Split & Send action.
   return (
     <div className={theme === "dark" ? "dark" : ""}>
       <div className="splitarc-app min-h-screen px-5 py-8 flex justify-center bg-[#F5F5F5] dark:bg-[#0A0A0A]">
