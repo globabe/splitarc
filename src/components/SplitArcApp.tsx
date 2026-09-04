@@ -1389,6 +1389,7 @@ export default function SplitArcApp() {
                 <button type="button" onClick={toggleTheme} className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" aria-label="Toggle color theme">
                   {theme === "light" ? <MoonIcon /> : <SunIcon />}
                 </button>
+                {isConnected && address && (
                 <div className="relative">
                   <button type="button" onClick={() => setProfileOpen((open) => !open)} className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" aria-label="Open profile">
                     <ProfileIcon />
@@ -1421,6 +1422,7 @@ export default function SplitArcApp() {
                     </div>
                   )}
                 </div>
+                )}
               </>
             }
           />
